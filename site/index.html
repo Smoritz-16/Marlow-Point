@@ -1052,7 +1052,7 @@ function fadeTo(fn){fadeEl.style.opacity=1;setTimeout(function(){fn();setTimeout
 
 /* zoom animation: an <img> of the current frame scaled by CSS (runs on the compositor, nothing is redrawn),
    then one sharp redraw at the new zoom when it lands */
-var zimg=null,zBusy=false;
+var zimg=document.getElementById('zimg'),zBusy=false;
 function viewFor(z){var c=cover();return {s:c.s*z.s,x:W/2-(z.cx*IW)*c.s*z.s,y:H/2-(z.cy*IH)*c.s*z.s}}
 function zoomAnim(to,ms,keep,done){
   zimg=zimg||$('#zimg'); ms=ms||750;
@@ -1084,7 +1084,7 @@ $('#flyBtn').onclick=function(){
     var p=v.play();if(p&&p.catch)p.catch(function(){});
     setMode('fly');
     v.onended=function(){
-      zimg.style.display='none';document.body.classList.remove('zooming');
+      if(zimg)zimg.style.display='none';document.body.classList.remove('zooming');
       enterInside();
       setTimeout(function(){v.classList.remove('on')},60);   // crossfade the last video frame into the live 360
     };
