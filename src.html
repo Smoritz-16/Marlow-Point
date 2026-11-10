@@ -59,6 +59,21 @@ p{margin:0 0 14px;font-size:13.5px;line-height:1.55;color:rgba(233,223,207,.82)}
 .stat{border-top:1px solid var(--line);padding-top:9px}
 .stat b{display:block;font-family:var(--serif);font-size:22px;font-weight:500}
 .stat span{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+/* floor view: slim panels at the screen edges, clear of the towers */
+body[data-mode=floor] #left{width:clamp(200px,15.5vw,232px);padding:16px 12px 12px;left:18px;top:86px}
+body[data-mode=floor] #left h2{font-size:26px}
+body[data-mode=floor] #left p{font-size:12px}
+body[data-mode=floor] #plate{margin:8px 0 6px}
+body[data-mode=floor] #left .legend{gap:8px;font-size:10px;flex-wrap:wrap}
+body[data-mode=floor] .unit{grid-template-columns:52px 1fr auto;gap:6px;padding:8px 6px;font-size:11px}
+body[data-mode=floor] .unit small{font-size:10px}
+body[data-mode=floor] .unit .pr{font-size:13px}
+body[data-mode=floor] #right{width:clamp(200px,15.5vw,232px);padding:16px 12px 14px;right:18px;top:86px}
+body[data-mode=floor] #right h2{font-size:26px}
+body[data-mode=floor] .kv{grid-template-columns:repeat(2,1fr)}
+body[data-mode=floor] .price{font-size:26px}
+body[data-mode=floor] .cta{padding:12px 14px;font-size:12.5px}
+body[data-mode=floor] .ghost{padding:10px 14px;font-size:11.5px}
 /* tower view: slim clear-glass card in the strip left of Tower A */
 body[data-mode=tower] #left{width:clamp(196px,15vw,226px);padding:16px 14px 14px;left:18px;border-radius:26px;top:auto;bottom:24px;text-shadow:0 1px 3px rgba(0,0,0,.55),0 0 14px rgba(0,0,0,.25)}
 body[data-mode=tower] #left h1{font-size:25px;margin:6px 0 8px;color:#fff}
@@ -428,7 +443,7 @@ function openFloor(fl){
   var p=polyOf(fl,S.frame),cx=0,cy=0,minx=1,maxx=0;p.forEach(function(q){cx+=q[0];cy+=q[1];minx=Math.min(minx,q[0]);maxx=Math.max(maxx,q[0])});cx/=p.length;cy/=p.length;
   var c=cover(), wpx=(maxx-minx)*IW*c.s, s=Math.max(1.5,Math.min(2.3,(W*.42)/wpx));
   var dy=W<820?(0.5-0.24)*H/(IH*c.s*s):0, dx=W<820?0:-(0.06*W)/(IW*c.s*s);
-  S.floorZoom={s:s,cx:cx+dx,cy:cy+dy};zoomAnim(S.floorZoom);
+  S.floorZoom={s:1,cx:.5,cy:.5};S.zoom={s:1,cx:.5,cy:.5};S.zoomTo={s:1,cx:.5,cy:.5};dirty=true;
   setMode('floor');$('#right').classList.add('hide');
 }
 function roomsSVG(T){
@@ -450,7 +465,7 @@ function openUnit(u){
   roomsSVG(u.type);
   $('#right').classList.remove('hide');
 }
-$('#backTower').onclick=function(){if(zBusy)return;S.floor=null;S.unit=null;zoomAnim({s:1,cx:.5,cy:.5});setMode('tower')};
+$('#backTower').onclick=function(){if(zBusy)return;S.floor=null;S.unit=null;setMode('tower');dirty=true};
 $('#backFloor').onclick=function(){
   if(S.mode==='inside'){fadeTo(function(){var fz=S.floorZoom;S.zoom={s:fz.s,cx:fz.cx,cy:fz.cy};S.zoomTo={s:fz.s,cx:fz.cx,cy:fz.cy};document.body.classList.remove('zooming');if(zimg)zimg.style.display='none';setMode('floor');openUnit(S.unit);dirty=true})}
   else{S.unit=null;$('#right').classList.add('hide');$$('.unit').forEach(function(b){b.classList.remove('on')})}
@@ -488,8 +503,6 @@ $('#flyBtn').onclick=function(){
   var v=$('#flyv');
   if(v.readyState<3){$('#flyBtn').textContent='Loading the flight…';v.addEventListener('canplaythrough',function h(){v.removeEventListener('canplaythrough',h);$('#flyBtn').textContent='Fly inside →';$('#flyBtn').onclick()});v.load();return}
   $('#right').classList.add('hide');$('#left').classList.add('hide');
-  var z=S.zoom;
-  zoomAnim({s:z.s*1.7,cx:z.cx,cy:z.cy},650,true);
   setTimeout(function(){
     v.currentTime=0;v.classList.add('on');
     var p=v.play();if(p&&p.catch)p.catch(function(){});
@@ -499,7 +512,7 @@ $('#flyBtn').onclick=function(){
       enterInside();
       setTimeout(function(){v.classList.remove('on')},60);   // crossfade the last video frame into the live 360
     };
-  },700);
+  },250);
 };
 var ROOMS={window:{yaw:180,pitch:-4},living:{yaw:-11.5,pitch:-2.4},kitchen:{yaw:-65,pitch:-6},balcony:{yaw:155,pitch:-10}};
 function enterInside(){
