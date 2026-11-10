@@ -59,6 +59,18 @@ p{margin:0 0 14px;font-size:13.5px;line-height:1.55;color:rgba(233,223,207,.82)}
 .stat{border-top:1px solid var(--line);padding-top:9px}
 .stat b{display:block;font-family:var(--serif);font-size:22px;font-weight:500}
 .stat span{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+/* tower view: slim clear-glass card in the strip left of Tower A */
+body[data-mode=tower] #left{width:clamp(196px,15vw,226px);padding:16px 14px 14px;left:18px;border-radius:26px;top:auto;bottom:24px;text-shadow:0 1px 3px rgba(0,0,0,.55),0 0 14px rgba(0,0,0,.25)}
+body[data-mode=tower] #left h1{font-size:25px;margin:6px 0 8px;color:#fff}
+body[data-mode=tower] #left p{font-size:12px;line-height:1.45;margin-bottom:10px;color:rgba(255,255,255,.92)}
+body[data-mode=tower] #left .eyebrow{font-size:9.5px;color:rgba(255,255,255,.85)}
+body[data-mode=tower] #left .tabs{gap:5px;margin:10px 0}
+body[data-mode=tower] #left .chip{padding:6px 10px;font-size:11px;background:rgba(13,20,28,.28);border-color:rgba(255,255,255,.28)}
+body[data-mode=tower] #left .legend{gap:9px;font-size:10.5px;flex-wrap:wrap;color:rgba(255,255,255,.85)}
+body[data-mode=tower] #left .stats{gap:6px;margin-top:10px}
+body[data-mode=tower] #left .stat b{font-size:18px}
+body[data-mode=tower] #left .stat span{font-size:9px;color:rgba(255,255,255,.8)}
+body[data-mode=tower] #left .hint{margin-top:10px;font-size:11px;color:rgba(255,255,255,.85)}
 .hint{font-size:12px;color:var(--muted);margin-top:14px;display:flex;align-items:center;gap:8px}
 .back{background:none;border:0;padding:0;font-size:12px;color:var(--muted);letter-spacing:.06em;margin-bottom:12px}
 .back:hover{color:var(--brass)}
@@ -156,11 +168,11 @@ input:focus,textarea:focus{border-color:var(--brass)}
 <!-- LEFT: intro / floor plate -->
 <section id="left" class="panel lg ts" data-lg-bezel="26" data-lg-tint="0.04,0.07,0.1,.6">
   <div id="introView">
-    <div class="eyebrow">Now leasing · Towers A, B, C</div>
+    <div class="eyebrow">Now leasing</div>
     <h1>Pick a floor.<br>Fly inside.</h1>
-    <p>Hover the towers to find a floor, click it to see which homes are still open, then fly straight into the apartment and look around in 360°.</p>
+    <p>Hover a floor, click it to see what's open, then fly inside and look around in 360°.</p>
     <div class="tabs" id="towerTabs">
-      <button class="chip on" data-t="ALL">All towers</button>
+      <button class="chip on" data-t="ALL">All</button>
       <button class="chip" data-t="A">Tower A</button>
       <button class="chip" data-t="B">Tower B</button>
       <button class="chip" data-t="C">Tower C</button>
@@ -1653,7 +1665,7 @@ var pano={yaw:0,pitch:0,fov:84,mix:1,cur:null,prev:null,
   set:function(img,fade){if(!img)return;if(fade&&this.cur&&this.cur!==img){this.prev=this.cur;this.mix=0}else{this.prev=null;this.mix=1}this.cur=img}};
 
 /* ------------------------------------------------ UI */
-function setMode(m){S.mode=m;document.body.dataset.mode=m;dirty=true;
+function setMode(m){S.mode=m;document.body.dataset.mode=m;dirty=true;$('#left').setAttribute('data-lg-tint',m==='tower'?'0.05,0.08,0.11,.26':'0.04,0.07,0.1,.6');$('#left').__lgRad=null;GLR&&(GLR.dirty=true);
   $('#introView').classList.toggle('hide',m!=='tower');
   $('#floorView').classList.toggle('hide',m!=='floor');
   $('#left').classList.toggle('hide',m==='fly'||m==='inside');
