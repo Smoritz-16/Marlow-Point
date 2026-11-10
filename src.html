@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marlow Point · Pick a floor. Fly inside.</title>
+<style>
+:root{
+  --ink:#0d141c;          /* 60 main: night ink (page, panels) */
+  --sand:#e9dfcf;         /* 30 secondary: warm sand (type, lines) */
+  --brass:#d1a85f;        /* 10 accent: brass (selection, CTA) */
+  --muted:rgba(233,223,207,.62);
+  --line:rgba(233,223,207,.16);
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Inter,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:transparent;color:var(--sand);font-family:var(--sans);overflow:hidden;-webkit-font-smoothing:antialiased}
+body.nogl{background:var(--ink)}
+#stage{position:fixed;inset:0;width:100vw;height:100vh;display:none}
+body.nogl #stage{display:block;z-index:-1}
+#hit{position:fixed;inset:0;cursor:grab;touch-action:none}
+#hit.pointer{cursor:pointer}
+#hit:active{cursor:grabbing}
+.lg{background:transparent;border:0;color:inherit}
+button{font:inherit;color:inherit;cursor:pointer}
+.ts{text-shadow:0 1px 2px rgba(0,0,0,.35)}
+
+/* top bar */
+.brand{position:fixed;top:22px;left:28px;z-index:5;line-height:1.1}
+.brand b{display:block;font-family:var(--serif);font-weight:600;font-size:19px;letter-spacing:.16em}
+.brand span{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:rgba(233,223,207,.9);font-weight:600}
+.brand{text-shadow:0 1px 3px rgba(0,0,0,.55),0 0 18px rgba(0,0,0,.35)}
+.nav{position:fixed;top:18px;right:24px;z-index:5;display:flex;gap:2px;padding:5px;border-radius:999px}
+.nav button{background:none;border:0;padding:9px 15px;border-radius:999px;font-size:13px;font-weight:500;letter-spacing:.01em}
+.nav button:hover,.nav button.on{color:var(--brass)}
+
+/* left panel */
+.panel{position:fixed;z-index:4;border-radius:30px;padding:24px 24px 22px}
+#left{left:24px;top:96px;width:330px;max-height:calc(100vh - 130px);overflow:auto;scrollbar-width:none}
+#left::-webkit-scrollbar{display:none}
+#right{right:24px;top:96px;width:300px;max-height:calc(100vh - 130px);overflow:auto;scrollbar-width:none}
+.eyebrow{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);font-weight:600}
+h1{font-family:var(--serif);font-weight:500;font-size:38px;line-height:1.02;margin:10px 0 12px;letter-spacing:-.01em}
+h2{font-family:var(--serif);font-weight:500;font-size:34px;margin:6px 0 4px;letter-spacing:-.01em}
+p{margin:0 0 14px;font-size:13.5px;line-height:1.55;color:rgba(233,223,207,.82)}
+.tabs{display:flex;gap:6px;margin:16px 0 14px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:rgba(13,20,28,.18);border-radius:999px;padding:8px 13px;font-size:12px;font-weight:600;letter-spacing:.04em}
+.chip.on{border-color:var(--brass);color:var(--brass)}
+.legend{display:flex;gap:14px;font-size:11.5px;color:var(--muted);margin-top:4px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:0}
+.d-av{background:var(--brass)}.d-re{background:#8ea3b5}.d-so{background:rgba(233,223,207,.25)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0 4px}
+.stat{border-top:1px solid var(--line);padding-top:9px}
+.stat b{display:block;font-family:var(--serif);font-size:22px;font-weight:500}
+.stat span{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.hint{font-size:12px;color:var(--muted);margin-top:14px;display:flex;align-items:center;gap:8px}
+.back{background:none;border:0;padding:0;font-size:12px;color:var(--muted);letter-spacing:.06em;margin-bottom:12px}
+.back:hover{color:var(--brass)}
+
+/* floor plate */
+#plate{width:100%;height:auto;display:block;margin:12px 0 10px}
+#plate .u{cursor:pointer;transition:fill .2s}
+#plate text{font:600 10px var(--sans);fill:var(--sand);pointer-events:none;letter-spacing:.06em}
+.units{display:flex;flex-direction:column;gap:2px;margin-top:6px}
+.unit{display:grid;grid-template-columns:62px 1fr auto;align-items:center;gap:10px;padding:10px 10px;border-radius:14px;background:none;border:0;text-align:left;font-size:12.5px}
+.unit:hover,.unit.on{background:rgba(233,223,207,.07)}
+.unit b{font-weight:600;letter-spacing:.03em}
+.unit small{display:block;color:var(--muted);font-size:11px}
+.unit .pr{font-family:var(--serif);font-size:15px}
+.unit.so{opacity:.45}
+
+/* right panel: unit */
+.kv{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:14px 0}
+.kv div{border:1px solid var(--line);border-radius:14px;padding:9px 8px;text-align:center}
+.kv b{display:block;font-family:var(--serif);font-size:19px;font-weight:500}
+.kv span{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.price{font-family:var(--serif);font-size:32px;margin:6px 0 2px}
+#rooms{width:100%;height:auto;display:block;margin:10px 0}
+#rooms text{font:600 9px var(--sans);fill:var(--sand);letter-spacing:.05em}
+.cta{display:block;width:100%;margin-top:14px;padding:14px 18px;border-radius:999px;border:0;font-weight:700;font-size:13.5px;letter-spacing:.04em;color:#1b1407}
+.ghost{display:block;width:100%;margin-top:8px;padding:12px 18px;border-radius:999px;border:1px solid var(--line);background:none;font-size:12.5px;font-weight:600}
+.status{display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:6px 11px;border-radius:999px;border:1px solid var(--line)}
+
+/* floor rail */
+#rail{position:fixed;right:24px;top:50%;translate:0 -50%;z-index:4;width:62px;border-radius:999px;padding:16px 6px;display:flex;flex-direction:column;align-items:center}
+#rail .ttl{font-size:9px;letter-spacing:.2em;color:var(--muted);margin-bottom:8px;font-weight:700}
+#railList{display:flex;flex-direction:column;gap:1px;max-height:62vh;overflow:auto;scrollbar-width:none;width:100%}
+#railList::-webkit-scrollbar{display:none}
+#railList button{background:none;border:0;padding:5px 0;font-size:12px;font-weight:600;border-radius:999px;color:rgba(233,223,207,.7);font-variant-numeric:tabular-nums;position:relative}
+#railList button.has::after{content:"";position:absolute;right:6px;top:50%;width:4px;height:4px;margin-top:-2px;border-radius:50%;background:var(--brass)}
+#railList button:hover,#railList button.on{color:#1b1407;background:var(--brass)}
+#railList button.on::after,#railList button:hover::after{display:none}
+
+/* tooltip */
+#tip{display:none;position:fixed;z-index:6;pointer-events:none;padding:10px 14px;border-radius:16px;font-size:12px;line-height:1.35;opacity:0;transition:opacity .15s;white-space:nowrap}
+#tip b{font-family:var(--serif);font-size:16px;font-weight:500;display:block}
+
+/* bottom room tabs (inside) */
+#roomTabs{position:fixed;left:50%;bottom:26px;translate:-50% 0;z-index:4;display:flex;gap:4px;padding:6px;border-radius:999px}
+#roomTabs button{background:none;border:0;padding:11px 20px;border-radius:999px;font-size:13px;font-weight:600}
+#roomTabs button.on{background:var(--brass);color:#1b1407}
+.dragnote{position:fixed;left:50%;bottom:92px;translate:-50% 0;z-index:4;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.75);pointer-events:none;transition:opacity .6s}
+.repr{position:fixed;left:28px;bottom:24px;z-index:4;font-size:10.5px;color:rgba(233,223,207,.55);letter-spacing:.06em;max-width:300px}
+
+/* sheets */
+#sheet{position:fixed;left:50%;top:50%;translate:-50% -50%;z-index:8;width:min(720px,92vw);border-radius:36px;padding:30px;display:none}
+#sheet.open{display:block}
+#sheet .close{position:absolute;top:18px;right:20px;background:none;border:0;font-size:22px;color:var(--muted)}
+#sheet h2{margin-bottom:12px}
+.sgrid{display:grid;grid-template-columns:1.15fr 1fr;gap:22px;align-items:start}
+#geo{width:100%;height:260px;border-radius:22px;display:block}
+.plan-row{display:grid;grid-template-columns:1fr auto;padding:11px 0;border-top:1px solid var(--line);font-size:13.5px}
+.plan-row b{font-family:var(--serif);font-size:18px;font-weight:500}
+input,textarea,select{width:100%;background:rgba(13,20,28,.25);border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:var(--sand);font:inherit;font-size:13.5px;margin-bottom:9px;outline:none}
+input:focus,textarea:focus{border-color:var(--brass)}
+
+/* fade + loader */
+#fade{position:fixed;inset:0;z-index:7;background:#0d141c;opacity:0;pointer-events:none;transition:opacity .45s}
+#loader{position:fixed;inset:0;z-index:20;background:#03060c;display:flex;align-items:center;justify-content:center;transition:opacity .8s}
+#loader canvas{position:absolute;inset:0;width:100%;height:100%}
+#loader .lt{position:relative;text-align:center;background:rgba(3,6,12,.72);padding:26px 34px;border-radius:24px}
+#loader .lt b{font-family:var(--serif);font-size:30px;font-weight:500;letter-spacing:.14em;display:block}
+#loader .lt span{font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:var(--muted)}
+#bar{width:220px;height:2px;background:rgba(233,223,207,.15);margin:16px auto 0;border-radius:2px;overflow:hidden}
+#bar i{display:block;height:100%;width:0;background:var(--brass);transition:width .2s}
+.hide{display:none!important}
+@media (max-width:820px){
+  #left{top:auto;bottom:16px;left:12px;right:12px;width:auto;max-height:46vh}
+  #right{top:auto;bottom:16px;left:12px;right:12px;width:auto;max-height:52vh}
+  #rail{right:10px;width:52px}
+  .nav{display:none}
+  h1{font-size:30px}
+}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas>
+<div id="hit"></div>
+
+<div class="brand ts"><b>MARLOW POINT</b><span>Harbor District · Three towers</span></div>
+<nav class="nav lg" data-lg-bezel="14" data-lg-tint="0.04,0.07,0.1,.45">
+  <button data-go="tower" class="on">Residences</button>
+  <button data-sheet="location">Location</button>
+  <button data-sheet="payment">Payment plan</button>
+  <button data-sheet="contact">Contact</button>
+</nav>
+
+<!-- LEFT: intro / floor plate -->
+<section id="left" class="panel lg ts" data-lg-bezel="26" data-lg-tint="0.04,0.07,0.1,.6">
+  <div id="introView">
+    <div class="eyebrow">Now leasing · Towers A, B, C</div>
+    <h1>Pick a floor.<br>Fly inside.</h1>
+    <p>Hover the towers to find a floor, click it to see which homes are still open, then fly straight into the apartment and look around in 360°.</p>
+    <div class="tabs" id="towerTabs">
+      <button class="chip on" data-t="ALL">All towers</button>
+      <button class="chip" data-t="A">Tower A</button>
+      <button class="chip" data-t="B">Tower B</button>
+      <button class="chip" data-t="C">Tower C</button>
+    </div>
+    <div class="legend"><span><i class="dot d-av"></i>Available</span><span><i class="dot d-re"></i>Reserved</span><span><i class="dot d-so"></i>Sold</span></div>
+    <div class="stats">
+      <div class="stat"><b id="sHomes">—</b><span>Homes</span></div>
+      <div class="stat"><b id="sAvail">—</b><span>Available</span></div>
+      <div class="stat"><b id="sFrom">—</b><span>From</span></div>
+    </div>
+    <div class="hint">↔ Drag to circle the towers</div>
+  </div>
+  <div id="floorView" class="hide">
+    <button class="back" id="backTower">← All towers</button>
+    <div class="eyebrow" id="fTower">Tower B</div>
+    <h2 id="fTitle">Floor 24</h2>
+    <p id="fSub" style="margin:0">3 of 4 available</p>
+    <svg id="plate" viewBox="0 0 340 236"></svg>
+    <div class="legend"><span><i class="dot d-av"></i>Available</span><span><i class="dot d-re"></i>Reserved</span><span><i class="dot d-so"></i>Sold</span></div>
+    <div class="units" id="unitList"></div>
+  </div>
+</section>
+
+<!-- RIGHT: unit detail -->
+<aside id="right" class="panel lg ts hide" data-lg-bezel="26" data-lg-tint="0.04,0.07,0.1,.6">
+  <button class="back" id="backFloor">← Back to floor</button>
+  <div class="eyebrow" id="uFacing">Tower B · Floor 24</div>
+  <h2 id="uTitle">B-2401</h2>
+  <span class="status" id="uStatus"><i class="dot d-av"></i>Available</span>
+  <svg id="rooms" viewBox="0 0 252 120"></svg>
+  <div class="kv">
+    <div><b id="kArea">1,780</b><span>sq ft</span></div>
+    <div><b id="kBed">2</b><span>Beds</span></div>
+    <div><b id="kBath">2</b><span>Baths</span></div>
+    <div><b id="kFloor">24</b><span>Floor</span></div>
+  </div>
+  <div class="eyebrow">Price</div>
+  <div class="price" id="uPrice">$1,240,000</div>
+  <p id="uMonthly" style="font-size:12px;color:var(--muted)">About $5,900/mo with the 20/80 plan</p>
+  <button class="cta lg" id="flyBtn" data-lg-bezel="14" data-lg-tint="0.82,0.66,0.37,.92">Fly inside →</button>
+  <button class="ghost" id="tourBtn">Book a private viewing</button>
+</aside>
+
+<!-- floor rail -->
+<div id="rail" class="lg ts" data-lg-bezel="18" data-lg-tint="0.04,0.07,0.1,.55">
+  <div class="ttl">FLOOR</div>
+  <div id="railList"></div>
+</div>
+
+<div id="tip" class="lg ts" data-lg-bezel="12" data-lg-tint="0.04,0.07,0.1,.65"></div>
+
+<div id="roomTabs" class="lg hide" data-lg-bezel="16" data-lg-tint="0.04,0.07,0.1,.55">
+  <button data-room="window">Window</button>
+  <button data-room="living" class="on">Living</button>
+  <button data-room="kitchen">Kitchen</button>
+  <button data-room="balcony">Balcony</button>
+</div>
+<div class="dragnote hide" id="dragnote">Drag to look around · 360°</div>
+<div class="repr hide" id="repr">Representative finishes. Marlow Point is a fictional development; homes, prices and renders are for illustration.</div>
+
+<!-- sheets -->
+<div id="sheet" class="lg ts" data-lg-bezel="30" data-lg-tint="0.05,0.08,0.11,.55">
+  <button class="close" id="sheetClose" aria-label="Close">×</button>
+  <div id="sheetBody"></div>
+</div>
+
+<div id="fade"></div>
+<div id="loader">
+  <canvas class="ascii-fx" data-look="Aurora" data-engine="plasma"></canvas>
+  <div class="lt"><b>MARLOW POINT</b><span id="loadTxt">Loading the towers</span><div id="bar"><i></i></div></div>
+</div>
+
+<script>
+/*ASCII*/
+</script>
+<script>
+/*GEO*/
+</script>
+<script>
+/*LG*/
+</script>
+<script>
+(function(){
+'use strict';
+var DATA = /*ORBIT_JSON*/;
+var FLY_N = /*FLY_N*/;
+var PANOS = /*PANOS*/;
+var ORBIT_N = DATA.frames;
+var $ = function(s){return document.querySelector(s)};
+var $$ = function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
+
+/* ------------------------------------------------ inventory (invented, deterministic) */
+var TYPES = {
+  '01': {name:'South residence', beds:2, baths:2, area:1780, facing:'South · bay views', rooms:[['Living',0,0,.62,.62],['Kitchen',.62,0,.38,.42],['Primary',.62,.42,.38,.58],['Bed 2',0,.62,.34,.38],['Bath',.34,.62,.28,.38]]},
+  '02': {name:'East residence', beds:1, baths:1, area:960, facing:'East · city views', rooms:[['Living',0,0,.6,.6],['Kitchen',.6,0,.4,.45],['Bedroom',0,.6,.6,.4],['Bath',.6,.45,.4,.55]]},
+  '03': {name:'North residence', beds:2, baths:2, area:1390, facing:'North · skyline views', rooms:[['Living',0,0,.58,.6],['Kitchen',.58,0,.42,.38],['Primary',.58,.38,.42,.62],['Bed 2',0,.6,.32,.4],['Bath',.32,.6,.26,.4]]},
+  '04': {name:'West residence', beds:3, baths:2.5, area:2140, facing:'West · sunset views', rooms:[['Living',0,0,.55,.55],['Kitchen',.55,0,.45,.35],['Primary',.55,.35,.45,.65],['Bed 2',0,.55,.28,.45],['Bed 3',.28,.55,.27,.45]]}
+};
+var PSF = {A:640, B:690, C:665};
+function hash(s){var h=2166136261;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0)/4294967296}
+function unitInfo(t,f,u){
+  var r=hash(t+f+u), st = r<.56?'av':r<.74?'re':'so';
+  if(t==='B'&&f===24&&u==='01') st='av';
+  var T=TYPES[u], price=Math.round(T.area*PSF[t]*(1+(f-3)*.014)/5000)*5000;
+  return {tower:t,floor:f,unit:u,code:t+'-'+f+u,status:st,price:price,type:T};
+}
+function floorUnits(t,f){return ['01','02','03','04'].map(function(u){return unitInfo(t,f,u)})}
+function money(n){return '$'+n.toLocaleString('en-US')}
+function short(n){return n>=1e6?'$'+(n/1e6).toFixed(2).replace(/0$/,'')+'M':'$'+Math.round(n/1000)+'K'}
+var ST = {av:'Available',re:'Reserved',so:'Sold'};
+(function(){var homes=0,av=0,from=1e12;['A','B','C'].forEach(function(t){for(var f=3;f<=DATA.floors[t];f++)floorUnits(t,f).forEach(function(x){homes++;if(x.status==='av'){av++;from=Math.min(from,x.price)}})});
+  $('#sHomes').textContent=homes;$('#sAvail').textContent=av;$('#sFrom').textContent=short(from);})();
+
+/* ------------------------------------------------ stage */
+var stage=$('#stage'), ctx=stage.getContext('2d'), W=0,H=0,DPR=1;
+function resize(){DPR=1;W=innerWidth;H=innerHeight;stage.width=Math.round(W*DPR);stage.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0);dirty=true}
+addEventListener('resize',function(){resize();document.querySelectorAll('.lg').forEach(function(e){e.__lgRad=null})});
+var IW=DATA.res[0], IH=DATA.res[1];
+function cover(){var s=Math.max(W/IW,H/IH);return {s:s,x:(W-IW*s)/2,y:(H-IH*s)/2}}
+
+var orbit=[],fly=[],panoImg={};
+function load(src){return new Promise(function(res){var im=new Image();im.decoding='async';im.onload=function(){(im.decode?im.decode():Promise.resolve()).catch(function(){}).then(function(){res(im)})};im.onerror=function(){res(null)};im.src=src})}
+
+/* state */
+var S={mode:'tower', tower:'ALL', frame:ORBIT_N/2, drift:1, hover:null, floor:null, unit:null,
+       zoom:{s:1,cx:.5,cy:.5}, zoomTo:{s:1,cx:.5,cy:.5}, flyT:0, room:'living'};
+var dirty=true;
+
+function polyOf(f,frame){var p=DATA.polys[Math.max(0,Math.min(ORBIT_N-1,Math.round(frame)))];return p[f.tower][f.floor]}
+function inPoly(pt,poly){var c=false;for(var i=0,j=poly.length-1;i<poly.length;j=i++){var a=poly[i],b=poly[j];if(((a[1]>pt[1])!==(b[1]>pt[1]))&&(pt[0]<(b[0]-a[0])*(pt[1]-a[1])/(b[1]-a[1])+a[0]))c=!c}return c}
+function towersShown(){return S.tower==='ALL'?['A','B','C']:[S.tower]}
+
+/* image-space (0..1) <-> screen, including the floor zoom */
+function view(){var c=cover(),z=S.zoom;return {s:c.s*z.s, x:W/2-(z.cx*IW)*c.s*z.s, y:H/2-(z.cy*IH)*c.s*z.s, c:c}}
+function toScreen(u,v,V){return [V.x+u*IW*V.s, V.y+v*IH*V.s]}
+function toImage(x,y,V){return [(x-V.x)/(IW*V.s),(y-V.y)/(IH*V.s)]}
+
+function drawPoly(poly,V,fill,stroke,lw){ctx.beginPath();poly.forEach(function(p,i){var q=toScreen(p[0],p[1],V);i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])});ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw||1.5;ctx.stroke()}}
+
+function drawOrbit(){
+  var V=view(), f=S.frame, i0=Math.floor(f), i1=Math.min(ORBIT_N-1,i0+1), a=f-i0;
+  var im0=orbit[Math.round(f)], im1=null;
+  if(!im0)return;
+  ctx.globalAlpha=1;ctx.drawImage(im0,V.x,V.y,IW*V.s,IH*V.s);
+  // (no blending between orbit frames: it ghosts)
+  // vignette for legibility
+  var g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'rgba(8,14,22,.38)');g.addColorStop(.18,'rgba(8,14,22,0)');g.addColorStop(.8,'rgba(8,14,22,0)');g.addColorStop(1,'rgba(8,14,22,.45)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  var target=S.floor||S.hover;
+  if(S.mode==='floor'&&S.floor){
+    // dim everything except the chosen floor
+    ctx.save();ctx.fillStyle='rgba(8,14,22,.42)';ctx.beginPath();ctx.rect(0,0,W,H);
+    var poly=polyOf(S.floor,f);poly.slice().reverse().forEach(function(p,i){var q=toScreen(p[0],p[1],V);i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])});ctx.closePath();ctx.fill('evenodd');ctx.restore();
+    drawPoly(poly,V,'rgba(209,168,95,.16)','rgba(240,205,140,.95)',1.6);
+  } else if(target){
+    drawPoly(polyOf(target,f),V,'rgba(209,168,95,.30)','rgba(245,214,155,.95)',1.4);
+  }
+}
+function drawFly(){
+  var t=S.flyT*(FLY_N-1), i0=Math.floor(t), i1=Math.min(FLY_N-1,i0+1), a=t-i0, c=cover();
+  var im0=fly[i0], im1=fly[i1];
+  if(!im0){return}
+  ctx.drawImage(im0,c.x,c.y,IW*c.s,IH*c.s);
+  if(im1&&a>0.01){ctx.globalAlpha=a;ctx.drawImage(im1,c.x,c.y,IW*c.s,IH*c.s);ctx.globalAlpha=1}
+}
+function frame(){
+  if(S.mode==='inside'){pano.draw();ctx.drawImage(pano.canvas,0,0,W,H);var g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'rgba(8,14,22,.42)');g.addColorStop(.16,'rgba(8,14,22,0)');g.addColorStop(.85,'rgba(8,14,22,0)');g.addColorStop(1,'rgba(8,14,22,.35)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);return}
+  ctx.fillStyle='#0d141c';ctx.fillRect(0,0,W,H);
+  if(S.mode==='fly')drawFly();else drawOrbit();
+}
+
+/* ------------------------------------------------ 360 viewer (own tiny WebGL, equirect) */
+var pano=(function(){
+  var cv=document.createElement('canvas'),gl=cv.getContext('webgl',{preserveDrawingBuffer:true,antialias:false});
+  var api={canvas:cv,yaw:0,pitch:0,fov:84,ok:!!gl,draw:function(){},set:function(){},mix:1};
+  if(!gl)return api;
+  var vs='attribute vec2 p;varying vec2 v;void main(){v=p;gl_Position=vec4(p,0.,1.);}';
+  var fs='precision highp float;varying vec2 v;uniform sampler2D a,b;uniform float yaw,pitch,tanf,asp,mixv;'+
+   'vec3 dir(){vec3 d=normalize(vec3(v.x*tanf,1.,v.y*tanf/asp));'+
+   'float cp=cos(pitch),sp=sin(pitch);d=vec3(d.x,d.y*cp-d.z*sp,d.y*sp+d.z*cp);'+
+   'float cy=cos(yaw),sy=sin(yaw);return vec3(d.x*cy+d.y*sy,-d.x*sy+d.y*cy,d.z);}'+
+   'void main(){vec3 d=dir();float lon=atan(d.x,d.y);float lat=asin(clamp(d.z,-1.,1.));'+
+   'vec2 uv=vec2(fract(.5+lon/6.2831853),.5-lat/3.1415927);'+
+   'gl_FragColor=vec4(mix(texture2D(a,uv).rgb,texture2D(b,uv).rgb,mixv),1.);}';
+  function sh(t,s){var o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return o}
+  var pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(pr);gl.useProgram(pr);
+  var bf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,bf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+  var l=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(l);gl.vertexAttribPointer(l,2,gl.FLOAT,false,0,0);
+  var U={};['a','b','yaw','pitch','tanf','asp','mixv'].forEach(function(n){U[n]=gl.getUniformLocation(pr,n)});
+  function tex(){var t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);return t}
+  var TA=tex(),TB=tex(),cur=null;
+  function up(t,img){gl.bindTexture(gl.TEXTURE_2D,t);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img)}
+  api.set=function(img,fade){ if(!img)return; if(fade&&cur){up(TA,cur);up(TB,img);api.mix=0}else{up(TA,img);up(TB,img);api.mix=1} cur=img };
+  api.draw=function(){
+    var w=Math.round(W*DPR),h=Math.round(H*DPR); if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}
+    gl.viewport(0,0,w,h);
+    gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,TA);gl.uniform1i(U.a,0);
+    gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,TB);gl.uniform1i(U.b,1);
+    gl.uniform1f(U.yaw,api.yaw);gl.uniform1f(U.pitch,api.pitch);gl.uniform1f(U.tanf,Math.tan(api.fov*Math.PI/360));gl.uniform1f(U.asp,w/h);gl.uniform1f(U.mixv,api.mix);
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+  };
+  return api;
+})();
+
+/* ------------------------------------------------ UI */
+function setMode(m){S.mode=m;document.body.dataset.mode=m;
+  $('#introView').classList.toggle('hide',m!=='tower');
+  $('#floorView').classList.toggle('hide',m!=='floor');
+  $('#left').classList.toggle('hide',m==='fly'||m==='inside');
+  $('#rail').classList.toggle('hide',m!=='tower');
+  $('#right').classList.toggle('hide',!(m==='floor'&&S.unit)&&m!=='inside');
+  $('#roomTabs').classList.toggle('hide',m!=='inside');
+  $('#dragnote').classList.toggle('hide',m!=='inside');
+  $('#repr').classList.toggle('hide',m!=='inside');
+  $('#flyBtn').classList.toggle('hide',m==='inside');
+  $('#backFloor').textContent=m==='inside'?'← Back to floor':'← All units';
+  tip(null);
+}
+function buildRail(){
+  var t=S.tower==='ALL'?'B':S.tower, list=$('#railList'); list.innerHTML='';
+  for(var f=DATA.floors[t];f>=3;f--){var b=document.createElement('button');b.textContent=f;b.dataset.f=f;
+    if(floorUnits(t,f).some(function(x){return x.status==='av'}))b.classList.add('has');
+    b.onmouseenter=(function(f){return function(){S.drift=0;S.hover={tower:t,floor:f};dirty=true;var p=polyOf(S.hover,S.frame),V=view(),q=toScreen(p[0][0],p[0][1],V);showTip(S.hover,Math.max.apply(null,p.map(function(z){return toScreen(z[0],z[1],V)[0]})),toScreen(0,p.reduce(function(a,z){return a+z[1]},0)/p.length,V)[1])}})(f);
+    b.onmouseleave=function(){S.hover=null;tip(null);dirty=true;if(S.mode==='tower')S.drift=1};
+    b.onclick=(function(f){return function(){openFloor({tower:t,floor:f})}})(f);
+    list.appendChild(b)}
+}
+$$('#towerTabs .chip').forEach(function(c){c.onclick=function(){$$('#towerTabs .chip').forEach(function(x){x.classList.remove('on')});c.classList.add('on');S.tower=c.dataset.t;buildRail();dirty=true}});
+
+var tipEl=$('#tip');
+function tip(h){if(!h){tipEl.style.opacity=0;tipEl.style.display='none';return}}
+function showTip(h,x,y){var u=floorUnits(h.tower,h.floor),av=u.filter(function(z){return z.status==='av'});
+  tipEl.innerHTML='<b>Tower '+h.tower+' · Floor '+h.floor+'</b>'+(av.length?av.length+' of 4 available · from '+short(Math.min.apply(null,av.map(function(z){return z.price}))):'Fully sold')+'<br><span style="color:var(--muted)">Click to open the floor</span>';
+  tipEl.style.display='block';var r=tipEl.getBoundingClientRect(); var tx=Math.min(W-r.width-90,x+18), ty=Math.max(80,Math.min(H-r.height-20,y-r.height/2));
+  tipEl.style.left=tx+'px';tipEl.style.top=ty+'px';tipEl.style.opacity=1}
+
+/* floor plate svg: the rounded tower footprint cut into four homes */
+function plateSVG(units){
+  var ns='http://www.w3.org/2000/svg',svg=$('#plate');svg.innerHTML='';
+  var X=170,Y=118,sx=10,sy=10; // 30m x 20m -> 300 x 200
+  var defs='<defs><clipPath id="fp"><rect x="'+(X-150)+'" y="'+(Y-100)+'" width="300" height="200" rx="70"/></clipPath></defs>';
+  var C={av:'rgba(209,168,95,.55)',re:'rgba(142,163,181,.45)',so:'rgba(233,223,207,.12)'};
+  var shapes={
+    '01':[[X-80,Y+10],[X+80,Y+10],[X+80,Y+100],[X-80,Y+100]], // south strip
+    '02':[[X+80,Y-100],[X+160,Y-100],[X+160,Y+100],[X+80,Y+100]],
+    '03':[[X-80,Y-100],[X+80,Y-100],[X+80,Y-30],[X-80,Y-30]],
+    '04':[[X-160,Y-100],[X-80,Y-100],[X-80,Y+100],[X-160,Y+100]]};
+  var lab={'01':[X,Y+62],'02':[X+118,Y+4],'03':[X,Y-62],'04':[X-118,Y+4]};
+  var h=defs+'<g clip-path="url(#fp)">';
+  units.forEach(function(u){var pts=shapes[u.unit].map(function(p){return p.join(',')}).join(' ');
+    h+='<polygon class="u" data-u="'+u.unit+'" points="'+pts+'" fill="'+C[u.status]+'" stroke="rgba(13,20,28,.7)" stroke-width="3"/>'});
+  h+='<rect x="'+(X-80)+'" y="'+(Y-30)+'" width="160" height="40" fill="rgba(13,20,28,.55)"/></g>';
+  h+='<rect x="'+(X-150)+'" y="'+(Y-100)+'" width="300" height="200" rx="70" fill="none" stroke="rgba(233,223,207,.55)" stroke-width="1.2"/>';
+  h+='<text x="'+X+'" y="'+(Y-6)+'" text-anchor="middle" style="fill:rgba(233,223,207,.5)">CORE</text>';
+  units.forEach(function(u){var l=lab[u.unit];h+='<text x="'+l[0]+'" y="'+l[1]+'" text-anchor="middle">'+u.unit+'</text><text x="'+l[0]+'" y="'+(l[1]+13)+'" text-anchor="middle" style="font-weight:500;fill:rgba(233,223,207,.75)">'+(u.status==='so'?'SOLD':u.type.area.toLocaleString()+' SF')+'</text>'});
+  h+='<text x="'+X+'" y="'+(Y+113)+'" text-anchor="middle" style="fill:rgba(233,223,207,.45);font-size:8px">SOUTH · BAY</text>';
+  svg.innerHTML=h;
+  $$('#plate .u').forEach(function(p){p.onclick=function(){var u=units.filter(function(z){return z.unit===p.dataset.u})[0];if(u.status!=='so')openUnit(u)}});
+}
+function openFloor(fl){
+  S.floor=fl;S.hover=null;S.unit=null;S.drift=0;
+  var units=floorUnits(fl.tower,fl.floor),av=units.filter(function(z){return z.status==='av'}).length;
+  $('#fTower').textContent='Tower '+fl.tower+' · '+(fl.floor>30?'Sky collection':fl.floor>15?'Mid-rise':'Garden levels');
+  $('#fTitle').textContent='Floor '+fl.floor;
+  var re=units.filter(function(z){return z.status==='re'}).length;$('#fSub').textContent=av?av+' of 4 homes available':(re?'No homes available · '+re+' reserved':'All four homes are sold');
+  plateSVG(units);
+  var L=$('#unitList');L.innerHTML='';
+  units.forEach(function(u){var b=document.createElement('button');b.className='unit'+(u.status==='so'?' so':'');b.dataset.u=u.unit;
+    b.innerHTML='<b>'+u.code+'</b><span>'+u.type.beds+' bd · '+u.type.area.toLocaleString()+' sf<small><i class="dot d-'+u.status+'"></i>'+ST[u.status]+'</small></span><span class="pr">'+(u.status==='so'?'—':short(u.price))+'</span>';
+    if(u.status!=='so')b.onclick=function(){openUnit(u)};L.appendChild(b)});
+  // zoom the orbit image onto that floor
+  var p=polyOf(fl,S.frame),cx=0,cy=0,minx=1,maxx=0;p.forEach(function(q){cx+=q[0];cy+=q[1];minx=Math.min(minx,q[0]);maxx=Math.max(maxx,q[0])});cx/=p.length;cy/=p.length;
+  var c=cover(), wpx=(maxx-minx)*IW*c.s, s=Math.max(1.5,Math.min(2.3,(W*.42)/wpx));
+  var dy=W<820?(0.5-0.24)*H/(IH*c.s*s):0, dx=W<820?0:-(0.06*W)/(IW*c.s*s);
+  S.zoomTo={s:s,cx:cx+dx,cy:cy+dy};S.floorZoom={s:s,cx:cx+dx,cy:cy+dy};
+  setMode('floor');$('#right').classList.add('hide');
+}
+function roomsSVG(T){
+  var svg=$('#rooms'),h='',X0=6,Y0=6,WW=240,HH=108;
+  T.rooms.forEach(function(r,i){var x=X0+r[1]*WW,y=Y0+r[2]*HH,w=r[3]*WW,hh=r[4]*HH;
+    h+='<rect x="'+(x+1.5)+'" y="'+(y+1.5)+'" width="'+(w-3)+'" height="'+(hh-3)+'" rx="6" fill="'+(i===0?'rgba(209,168,95,.32)':'rgba(233,223,207,.08)')+'" stroke="rgba(233,223,207,.35)"/>';
+    h+='<text x="'+(x+w/2)+'" y="'+(y+hh/2+3)+'" text-anchor="middle">'+r[0]+'</text>'});
+  svg.innerHTML=h;
+}
+function openUnit(u){
+  S.unit=u;
+  $$('.unit').forEach(function(b){b.classList.toggle('on',b.dataset.u===u.unit)});
+  $('#uFacing').textContent='Tower '+u.tower+' · Floor '+u.floor+' · '+u.type.facing;
+  $('#uTitle').textContent=u.code;
+  $('#uStatus').innerHTML='<i class="dot d-'+u.status+'"></i>'+ST[u.status];
+  $('#kArea').textContent=u.type.area.toLocaleString();$('#kBed').textContent=u.type.beds;$('#kBath').textContent=u.type.baths;$('#kFloor').textContent=u.floor;
+  $('#uPrice').textContent=money(u.price);
+  $('#uMonthly').textContent='20% now, 80% on handover · about '+money(Math.round(u.price*.8*0.0056/10)*10)+'/mo financed';
+  roomsSVG(u.type);
+  $('#right').classList.remove('hide');
+}
+$('#backTower').onclick=function(){S.floor=null;S.unit=null;S.zoomTo={s:1,cx:.5,cy:.5};S.drift=1;setMode('tower');dirty=true};
+$('#backFloor').onclick=function(){
+  if(S.mode==='inside'){fadeTo(function(){var fz=S.floorZoom;S.zoom={s:fz.s,cx:fz.cx,cy:fz.cy};S.zoomTo={s:fz.s,cx:fz.cx,cy:fz.cy};setMode('floor');openUnit(S.unit);dirty=true})}
+  else{S.unit=null;$('#right').classList.add('hide');$$('.unit').forEach(function(b){b.classList.remove('on')})}
+};
+var fadeEl=$('#fade');
+function fadeTo(fn){fadeEl.style.opacity=1;setTimeout(function(){fn();setTimeout(function(){fadeEl.style.opacity=0},60)},460)}
+
+/* fly in: zoom deeper into the floor, cut to the rendered flight, settle into the 360 */
+$('#flyBtn').onclick=function(){
+  if(!fly.length||fly.filter(Boolean).length<FLY_N){$('#flyBtn').textContent='Loading the flight…';waitFly().then(function(){$('#flyBtn').textContent='Fly inside →';$('#flyBtn').onclick()});return}
+  S.zoomTo={s:S.zoom.s*1.9,cx:S.zoomTo.cx,cy:S.zoomTo.cy};
+  $('#right').classList.add('hide');$('#left').classList.add('hide');
+  setTimeout(function(){fadeTo(function(){
+    setMode('fly');S.flyT=0;var t0=performance.now(),dur=5200;
+    (function step(now){var k=Math.min(1,(now-t0)/dur);S.flyT=k;dirty=true;
+      if(k<1)requestAnimationFrame(step);else enterInside()})(t0);
+  })},520);
+};
+var ROOMS={window:{yaw:180,pitch:-4},living:{yaw:-11.5,pitch:-2.4},kitchen:{yaw:-65,pitch:-6},balcony:{yaw:155,pitch:-10}};
+function enterInside(){
+  S.room='living';pano.yaw=ROOMS.living.yaw*Math.PI/180;pano.pitch=ROOMS.living.pitch*Math.PI/180;pano.fov=84;
+  pano.set(panoImg.living,false);
+  // crossfade the last flight frame into the live 360
+  var last=fly[FLY_N-1];setMode('inside');
+  $$('#roomTabs button').forEach(function(b){b.classList.toggle('on',b.dataset.room==='living')});
+  ghost=last;ghostT=performance.now();
+  $('#dragnote').style.opacity=1;setTimeout(function(){$('#dragnote').style.opacity=0},4200);
+}
+var ghost=null,ghostT=0;
+$$('#roomTabs button').forEach(function(b){b.onclick=function(){var r=b.dataset.room;if(!panoImg[r])return;
+  $$('#roomTabs button').forEach(function(x){x.classList.toggle('on',x===b)});S.room=r;
+  pano.set(panoImg[r],true);tween(pano,'yaw',ROOMS[r].yaw*Math.PI/180,900);tween(pano,'pitch',ROOMS[r].pitch*Math.PI/180,900)}});
+function tween(o,k,to,ms){var f=o[k],t0=performance.now();if(k==='yaw'){var d=((to-f)%(2*Math.PI)+3*Math.PI)%(2*Math.PI)-Math.PI;to=f+d}
+  (function st(n){var a=Math.min(1,(n-t0)/ms);a=a<.5?2*a*a:1-Math.pow(-2*a+2,2)/2;o[k]=f+(to-f)*a;if(a<1)requestAnimationFrame(st)})(t0)}
+
+/* ------------------------------------------------ input */
+var hit=$('#hit'),drag=null;
+hit.addEventListener('pointerdown',function(e){drag={x:e.clientX,y:e.clientY,f:S.frame,yaw:pano.yaw,pitch:pano.pitch,moved:false};hit.setPointerCapture(e.pointerId);S.drift=0});
+hit.addEventListener('pointermove',function(e){
+  if(drag){var dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.abs(dx)+Math.abs(dy)>4)drag.moved=true;
+    if(S.mode==='tower'){S.frame=Math.max(0,Math.min(ORBIT_N-1,drag.f-dx/(W/ORBIT_N)*0.9));dirty=true}
+    if(S.mode==='inside'){var k=pano.fov/W*Math.PI/180;pano.yaw=drag.yaw-dx*k;pano.pitch=Math.max(-1.2,Math.min(1.2,drag.pitch+dy*k))}
+    if(drag.moved){tip(null);return}}
+  if(S.mode!=='tower')return;
+  var V=view(),pt=toImage(e.clientX,e.clientY,V),found=null;
+  towersShown().forEach(function(t){for(var f=3;f<=DATA.floors[t]&&!found;f++){var p=DATA.polys[Math.round(S.frame)][t][f];if(inPoly(pt,p))found={tower:t,floor:f}}});
+  var same=found&&S.hover&&found.tower===S.hover.tower&&found.floor===S.hover.floor;
+  S.hover=found;hit.classList.toggle('pointer',!!found);if(!same)dirty=true;
+  if(found){var pp=DATA.polys[Math.round(S.frame)][found.tower][found.floor],mx=0,my=0;pp.forEach(function(z){var q=toScreen(z[0],z[1],V);mx=Math.max(mx,q[0]);my+=q[1]/pp.length});showTip(found,mx,my);$$('#railList button').forEach(function(b){b.classList.toggle('on',(S.tower==='ALL'?found.tower==='B':true)&&+b.dataset.f===found.floor)})}
+  else{tip(null);$$('#railList button').forEach(function(b){b.classList.remove('on')})}
+});
+hit.addEventListener('pointerup',function(e){var d=drag;drag=null;
+  if(d&&!d.moved&&S.mode==='tower'&&S.hover)openFloor(S.hover);
+  if(S.mode==='tower')setTimeout(function(){if(!drag)S.drift=1},2500)});
+hit.addEventListener('pointerleave',function(){if(S.mode==='tower'){S.hover=null;tip(null);dirty=true}});
+hit.addEventListener('wheel',function(e){if(S.mode==='inside'){e.preventDefault();pano.fov=Math.max(45,Math.min(100,pano.fov+e.deltaY*.04))}},{passive:false});
+addEventListener('keydown',function(e){if(e.key==='Escape'){if($('#sheet').classList.contains('open'))closeSheet();else if(S.mode==='inside')$('#backFloor').onclick();else if(S.mode==='floor')$('#backTower').onclick()}});
+
+/* ------------------------------------------------ sheets (location / payment / contact) */
+var SHEETS={
+  location:'<div class="eyebrow">Location</div><h2>On the water, ten minutes from everything</h2><div class="sgrid"><canvas id="geo" class="geo-fx" data-geo="EDGE BOX ARCHITECTURE" data-image="'+'media/orbit/orbit_'+String(Math.floor(ORBIT_N/2)).padStart(3,'0')+'.jpg"></canvas><div><p>Three towers on a landscaped park in the Harbor District, between the old shipyards and downtown. The bay is a short walk south; the financial core sits just to the north-east.</p><div class="plan-row"><span>Waterfront promenade</span><b>4 min walk</b></div><div class="plan-row"><span>Downtown core</span><b>10 min drive</b></div><div class="plan-row"><span>Light rail · Harbor station</span><b>6 min walk</b></div><div class="plan-row"><span>International airport</span><b>25 min drive</b></div></div></div>',
+  payment:'<div class="eyebrow">Payment plan</div><h2>20 / 80, with nothing more until the keys</h2><p>Reserve with a refundable deposit, then pay in step with construction. Figures shown as a share of the purchase price.</p><div class="plan-row"><span>Reservation (refundable for 14 days)</span><b>$10,000</b></div><div class="plan-row"><span>On signing the purchase agreement</span><b>10%</b></div><div class="plan-row"><span>Tower topping out</span><b>10%</b></div><div class="plan-row"><span>On handover of keys</span><b>80%</b></div><p style="margin-top:14px;font-size:12px;color:var(--muted)">Illustrative only. Marlow Point is a fictional development.</p>',
+  contact:'<div class="eyebrow">Contact</div><h2>Book a private viewing</h2><div class="sgrid"><form onsubmit="event.preventDefault();this.innerHTML=\'<p>Thanks — this is a demo, so nothing was sent.</p>\'"><input placeholder="Full name" required><input type="email" placeholder="Email" required><input placeholder="Residence of interest" id="cRes"><textarea rows="3" placeholder="Anything we should know?"></textarea><button class="cta lg" data-lg-bezel="14" data-lg-tint="0.82,0.66,0.37,.92" type="submit">Request a viewing</button></form><div><p>The sales gallery is open daily, 10am–6pm, at the foot of Tower B.</p><div class="plan-row"><span>Sales gallery</span><b>Tower B lobby</b></div><div class="plan-row"><span>Hours</span><b>10–6 daily</b></div></div></div>'
+};
+function openSheet(k){$('#sheetBody').innerHTML=SHEETS[k];$('#sheet').classList.add('open');$$('.nav button').forEach(function(b){b.classList.toggle('on',b.dataset.sheet===k)});
+  var g=$('#geo');if(g&&window.GeoFX)g._geoFx=new GeoFX(g);
+  if(k==='contact'&&S.unit){var c=$('#cRes');if(c)c.value=S.unit.code}}
+function closeSheet(){$('#sheet').classList.remove('open');$$('.nav button').forEach(function(b){b.classList.toggle('on',b.dataset.go==='tower')})}
+$$('.nav button[data-sheet]').forEach(function(b){b.onclick=function(){openSheet(b.dataset.sheet)}});
+$('.nav button[data-go]').onclick=function(){closeSheet();if(S.mode!=='tower'){if(S.mode==='inside'){fadeTo(function(){S.floor=null;S.unit=null;S.zoom={s:1,cx:.5,cy:.5};S.zoomTo={s:1,cx:.5,cy:.5};setMode('tower')})}else $('#backTower').onclick()}};
+$('#sheetClose').onclick=closeSheet;
+$('#tourBtn').onclick=function(){openSheet('contact')};
+
+/* ------------------------------------------------ main loop */
+var lastT=performance.now();
+function loop(now){var dt=Math.min(.05,(now-lastT)/1000);lastT=now;
+  if(S.mode==='tower'&&S.drift&&!drag){S._dir=S._dir||1;S.frame+=S._dir*dt*1.6;if(S.frame>ORBIT_N-1){S.frame=ORBIT_N-1;S._dir=-1}if(S.frame<0){S.frame=0;S._dir=1}var rf=Math.round(S.frame);if(rf!==S._rf){S._rf=rf;dirty=true;if(S.hover&&!drag){S.hover=null;tip(null)}}}
+  var z=S.zoom,zt=S.zoomTo,k=1-Math.pow(.004,dt);
+  if(Math.abs(z.s-zt.s)>.0005||Math.abs(z.cx-zt.cx)>.0001||Math.abs(z.cy-zt.cy)>.0001){
+    var c=cover(); var ns=z.s+(zt.s-z.s)*k;
+    // keep zoom centred on the screen centre when zoomed out
+    z.s=ns; var blend=(ns-1)/Math.max(.001,zt.s-1||ns-1);
+    z.cx+= (zt.cx-z.cx)*k; z.cy+=(zt.cy-z.cy)*k; dirty=true}
+  if(S.mode==='inside'){if(pano.mix<1){pano.mix=Math.min(1,pano.mix+dt*2.2);dirty=true}var pk=pano.yaw.toFixed(4)+pano.pitch.toFixed(4)+pano.fov.toFixed(2);if(pk!==S._pk){S._pk=pk;dirty=true}if(ghost)dirty=true}
+  if(dirty||S.mode==='fly'){frame();
+    if(ghost&&S.mode==='inside'){var ghostA=1-(performance.now()-ghostT)/800;if(ghostA<=0){ghost=null}else{var c2=cover();ctx.globalAlpha=Math.max(0,ghostA);ctx.drawImage(ghost,c2.x,c2.y,IW*c2.s,IH*c2.s);ctx.globalAlpha=1}}
+    dirty=false;bgDirty=true}
+  requestAnimationFrame(loop)}
+var bgDirty=true;
+
+/* ------------------------------------------------ boot */
+function waitFly(){return Promise.all(flyP)}
+var flyP=[];
+resize();
+var orbitP=[];for(var i=0;i<ORBIT_N;i++)(function(i){orbitP.push(load('media/orbit/orbit_'+String(i).padStart(3,'0')+'.jpg').then(function(im){orbit[i]=im;done++;prog()}))})(i);
+var done=0;function prog(){$('#bar i').style.width=Math.round(done/ORBIT_N*100)+'%';$('#loadTxt').textContent='Loading the towers · '+Math.round(done/ORBIT_N*100)+'%'}
+Promise.all(orbitP).then(function(){
+  var lastGood=null;for(var q=0;q<ORBIT_N;q++){if(orbit[q])lastGood=orbit[q];else orbit[q]=lastGood}for(q=ORBIT_N-1;q>=0;q--){if(orbit[q])lastGood=orbit[q];else orbit[q]=lastGood}
+  var lg=null;try{lg=window.LiquidGlass&&LiquidGlass.init({background:function(c,w,h){c.drawImage(stage,0,0,w,h)},animate:true,light:[-.6,-.8],dirty:function(){var d=bgDirty;bgDirty=false;return d}})}catch(e){lg=null}
+  if(!lg)document.body.classList.add('nogl');
+  buildRail();setMode('tower');requestAnimationFrame(loop);
+  var ld=$('#loader');ld.style.opacity=0;setTimeout(function(){var a=ld.querySelector('canvas');if(a&&a._asciiFx)a._asciiFx.destroy();ld.remove()},900);
+  for(var j=0;j<FLY_N;j++)(function(j){flyP.push(load('media/fly/fly_'+String(j).padStart(3,'0')+'.jpg').then(function(im){fly[j]=im}))})(j);
+  PANOS.forEach(function(n){load('media/pano/pano_'+n+'.jpg').then(function(im){panoImg[n]=im})});
+});
+})();
+</script>
+</body>
+</html>
