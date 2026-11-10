@@ -19,7 +19,7 @@ html = (src.replace('/*ASCII*/', open(os.path.join(here, 'fx_ascii.js')).read())
            .replace('/*PANOS*/', json.dumps(order)))
 os.makedirs(site, exist_ok=True)
 open(os.path.join(site, 'index.html'), 'w').write(html)
-for sub, pat in (('orbit', 'render/orbit/orbit_*.jpg'), ('fly', 'render/fly/fly_*.jpg'), ('pano', 'render/pano/pano_*.jpg')):
+for sub, pat in (('orbit', 'render/orbit/orbit_*.jpg'), ('pano', 'render/pano/pano_*.jpg')):
     d = os.path.join(site, 'media', sub); os.makedirs(d, exist_ok=True)
     for f in glob.glob(os.path.join(here, pat)):
         dst = os.path.join(d, os.path.basename(f))

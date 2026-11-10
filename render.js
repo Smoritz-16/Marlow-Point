@@ -142,6 +142,7 @@
           gl.uniform4fv(U.rects, rects); gl.uniform4fv(U.shape, shape); gl.uniform4fv(U.tint, tint); gl.uniform4fv(U.look, look);
           gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
           lastSig = sig; GLR.dirty = false;
+          if (GLR.afterDraw) { var cb = GLR.afterDraw; GLR.afterDraw = null; requestAnimationFrame(cb); }
         }
         requestAnimationFrame(frame);
       }

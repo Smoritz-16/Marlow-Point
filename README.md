@@ -18,8 +18,8 @@ cd site && python3 -m http.server 8000
 | Path | What it is |
 |---|---|
 | `site/index.html` | The whole site in one file (ASCII loader, Liquid Glass UI, floor picker, flight player, 360 viewer) |
-| `site/media/orbit/` | 36 frames of the drone orbit around the towers (drag to circle) |
-| `site/media/fly/` | 48 frames of the fly-in, facade to living room |
+| `site/media/orbit/` | 36 frames around the towers; the site opens on a still shot and you drag to turn |
+| `site/media/video/fly.mp4` | The fly-in, facade to living room (48 Cycles frames, motion-interpolated to 30 fps) |
 | `site/media/pano/` | 360° equirectangular panoramas: window, living, kitchen, balcony |
 | `scene.py` | The Blender scene: towers, city, sky, apartment, cameras and the render modes |
 | `lib.py` | Material and mesh helpers (shared with the Calder Quay room renders) |
