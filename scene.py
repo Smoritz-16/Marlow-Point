@@ -411,8 +411,21 @@ def build_towers():
 def build_target_floor():
     """Tower B floor 24: same storey, but the south apartment is real - clear glass and an open slider."""
     cx, cy = TOWERS['B']['c']
-    front = lambda x, y: (y < -D / 2 + 0.2 and abs(x) < 8.0)
+    front = lambda x, y: (y < -D / 2 + 0.2 and abs(x) < 8.0) or (y < cy - 1.5 and abs(x - cx) > 8.0)
     ob = floor_module('target_floor', skip=front)
+    # real glass round both front corners (the bedrooms and bath sit behind them)
+    bmg = bmesh.new()
+    pts = GLASS; n = len(pts)
+    for i in range(n):
+        (x0, y0), (x1, y1) = pts[i], pts[(i + 1) % n]
+        mx, my = (x0 + x1) / 2, (y0 + y1) / 2
+        if my < -1.5 and abs(mx) > 8.0:
+            vs = [bmg.verts.new(p) for p in ((cx + x0, cy + y0, ZF), (cx + x1, cy + y1, ZF), (cx + x1, cy + y1, ZT + FH), (cx + x0, cy + y0, ZT + FH))]
+            bmg.faces.new(vs)
+    for x, y, a in resample(GLASS, 1.6):
+        if y < -1.5 and abs(x) > 8.1:
+            add_box(bmg, cx + x, cy + y, ZF + (FH - 0.32) / 2, 0.06, 0.12, FH - 0.32, 1, a)
+    mesh_obj('corner_glass', bmg, ['glass', 'alu'])
     ob.location = (cx, cy, ZT)
     # real glazing: floor-to-ceiling panes, 2.0m modules, the middle two slid open
     bm = bmesh.new()
@@ -726,6 +739,118 @@ def build_apartment():
         spot('dl', x_, y_, zc - 0.05, energy=11, size=70)
     area('sky_fill', 0, yF + 0.4, ZF + 1.4, 15.5, 2.6, 30, color=(0.75, 0.82, 1.0), rot=(math.radians(-90), 0, 0))
 
+
+# ------------------------------------------------------------------ bedrooms + bath (behind the curved corners)
+def outline_poly(side):
+    """Floor polygon of a corner room: the glass line where x is beyond the party wall, closed at y=-1.5."""
+    xs = 8.2
+    pts = [(x, y) for x, y in GLASS if y < -1.5 and (x > xs if side > 0 else x < -xs)]
+    pts.sort(key=lambda p: math.atan2(p[1] + 1.5, p[0]))
+    return pts
+
+def slab_poly(name, pts, z, mat, thick=0.02):
+    bm = bmesh.new()
+    add_prism(bm, pts, z - thick, z, 0)
+    return mesh_obj(name, bm, [mat])
+
+def bed_set(cx_, cy_, w, l, head_dir, pillow_mat='linen', throw='taupe'):
+    """A made bed. head_dir: (dx, dy) pointing from the foot to the headboard."""
+    dx, dy = head_dir; rz = math.atan2(dy, dx) - math.pi / 2
+    def at(u, v):  # u across the bed, v along it (towards the head)
+        return cx_ + u * math.cos(rz) - v * math.sin(rz), cy_ + u * math.sin(rz) + v * math.cos(rz)
+    soft('bed_base', cx_, cy_, ZF + 0.05, w, l, 0.3, 'taupe', r=0.04, rz=rz)
+    soft('mattress', cx_, cy_, ZF + 0.33, w - 0.06, l - 0.06, 0.24, 'ceramic', r=0.08, rz=rz)
+    hx, hy = at(0, -0.12)
+    soft('duvet', hx, hy, ZF + 0.5, w + 0.04, l - 0.28, 0.12, 'boucle', r=0.06, rz=rz)
+    tx, ty = at(0, -l / 2 + 0.38)
+    soft('throw', tx, ty, ZF + 0.6, w + 0.08, 0.55, 0.05, throw, r=0.025, rz=rz)
+    for u in (-w / 4, w / 4):
+        px, py = at(u, l / 2 - 0.3)
+        soft('pillow', px, py, ZF + 0.58, w / 2 - 0.1, 0.38, 0.2, pillow_mat, r=0.09, rz=rz)
+        px, py = at(u * 0.9, l / 2 - 0.55)
+        soft('pillow2', px, py, ZF + 0.6, w / 2 - 0.2, 0.3, 0.16, 'boucle', r=0.07, rz=rz)
+    bx, by = at(0, l / 2 + 0.06)
+    soft('headboard', bx, by, ZF + 0.05, w + 0.3, 0.12, 1.25, 'linen', r=0.05, rz=rz)
+    return at
+
+def night_lamp(x, y, z):
+    cyl('lamp_b', x, y, z, 0.07, 0.07, 0.32, 'stoneware', verts=24)
+    cyl('lamp_s', x, y, z + 0.3, 0.15, 0.15, 0.2, 'shade_glass', verts=32)
+    L = bpy.data.lights.new('nl', 'POINT'); L.energy = 9; L.shadow_soft_size = 0.08; L.color = (1, 0.72, 0.46)
+    o = bpy.data.objects.new('nl', L); scene.collection.objects.link(o); o.location = (x, y, z + 0.4)
+
+def build_bedrooms():
+    cx, cy = TOWERS['B']['c']
+    zc = ZT + FH; H = zc - ZF
+    for side in (-1, 1):
+        pts = [(cx + x, cy + y) for x, y in outline_poly(side)]
+        inner = 8.2 * side
+        poly = pts + ([(cx + inner, cy - 1.5), (cx + inner, cy - D / 2)] if side < 0 else [(cx + inner, cy - D / 2), (cx + inner, cy - 1.5)])
+        poly = [(cx + inner, cy - D / 2)] + pts + [(cx + inner, cy - 1.5)] if side > 0 else [(cx + inner, cy - 1.5)] + pts + [(cx + inner, cy - D / 2)]
+        box('bed_floor%d' % side, cx + side * 11.6, cy - 5.9, ZF - 0.02, 6.8, 8.6, 0.02, 'oak_floor', bevel=0)
+        box('bed_ceil%d' % side, cx + side * 11.6, cy - 5.9, zc - 0.02, 6.8, 8.6, 0.02, 'ceiling', bevel=0)
+        # back wall towards the core
+        box('bwall%d' % side, cx + side * 11.6, cy - 1.4, ZF, 7.0, 0.2, H, 'plaster', bevel=0)
+    # ---------- primary bedroom (west)
+    box('wardrobe', cx - 8.55, cy - 3.6, ZF, 0.62, 3.6, 2.62, 'oak', bevel=0.004)
+    for i in range(5):
+        box('wgap', cx - 8.865, cy - 5.4 + i * 0.72, ZF + 0.02, 0.004, 0.006, 2.58, 'black_matte', bevel=0)
+    box('bed_panel', cx - 11.4, cy - 1.55, ZF, 3.4, 0.06, 2.5, 'walnut', bevel=0.004)
+    box('bed_panel_led', cx - 11.4, cy - 1.6, ZF + 2.48, 3.3, 0.02, 0.01, 'led_soft', bevel=0)
+    bed_set(cx - 11.4, cy - 2.75, 2.0, 2.15, (0, 1))
+    for dx_ in (-1.45, 1.45):
+        box('nstand', cx - 11.4 + dx_, cy - 1.85, ZF + 0.18, 0.55, 0.42, 0.38, 'walnut', bevel=0.008)
+        night_lamp(cx - 11.4 + dx_, cy - 1.85, ZF + 0.56)
+    box('rug_p', cx - 11.4, cy - 3.2, ZF, 3.4, 2.6, 0.012, 'rug', bevel=0.004)
+    soft('chaise', cx - 12.8, cy - 7.6, ZF + 0.1, 0.75, 1.5, 0.32, 'boucle', r=0.1, rz=0.6)
+    soft('chaise_back', cx - 13.15, cy - 7.95, ZF + 0.3, 0.7, 0.3, 0.42, 'boucle', r=0.1, rz=0.6)
+    plant(cx - 9.2, cy - 9.0, ZF, h=1.9, n=300, seed=21)
+    for x_, y_ in [(-10.4, -3.2), (-12.4, -3.2), (-11.4, -6.5), (-13.0, -5.0)]:
+        cyl('can', cx + x_, cy + y_, zc - 0.03, 0.045, 0.045, 0.02, 'led', verts=24)
+        spot('dl', cx + x_, cy + y_, zc - 0.05, energy=9, size=70)
+    # ---------- second bedroom (east, front) + bath (east, back)
+    box('bathwall', cx + 11.6, cy - 4.55, ZF, 7.0, 0.14, H, 'plaster', bevel=0)
+    box('bathdoor', cx + 9.2, cy - 4.55, ZF, 0.9, 0.16, 2.3, 'corridor', bevel=0)
+    bed_set(cx + 9.45, cy - 7.4, 1.6, 2.05, (-1, 0), pillow_mat='linen', throw='book2')
+    box('nstand2', cx + 8.55, cy - 6.15, ZF + 0.18, 0.5, 0.42, 0.38, 'oak_h', bevel=0.008)
+    night_lamp(cx + 8.55, cy - 6.15, ZF + 0.56)
+    box('desk', cx + 12.4, cy - 5.1, ZF + 0.72, 1.4, 0.6, 0.04, 'oak_h', bevel=0.004)
+    box('desk_leg1', cx + 11.75, cy - 5.1, ZF, 0.05, 0.55, 0.72, 'black', bevel=0)
+    box('desk_leg2', cx + 13.05, cy - 5.1, ZF, 0.05, 0.55, 0.72, 'black', bevel=0)
+    chair(cx + 12.4, cy - 5.75, 0.0)
+    cyl('desk_lamp', cx + 12.9, cy - 5.0, ZF + 0.76, 0.06, 0.06, 0.4, 'brass', verts=16)
+    for k, (bx_, c_) in enumerate(((11.9, 'book1'), (11.98, 'book3'), (12.04, 'book2'))):
+        box('dbook', cx + bx_, cy - 4.95, ZF + 0.76, 0.05, 0.22, 0.28, c_, bevel=0.002)
+    box('rug_b', cx + 10.4, cy - 7.4, ZF, 2.4, 3.0, 0.012, 'rug', bevel=0.004)
+    plant(cx + 13.8, cy - 8.0, ZF, h=1.6, n=260, pot='ceramic', seed=33)
+    for x_, y_ in [(10.0, -7.4), (12.2, -7.0), (12.2, -5.4), (9.2, -5.4), (9.2, -9.0)]:
+        cyl('can', cx + x_, cy + y_, zc - 0.03, 0.045, 0.045, 0.02, 'led', verts=24)
+        spot('dl', cx + x_, cy + y_, zc - 0.05, energy=14, size=70)
+    box('art2_frame', cx + 8.23, cy - 7.4, ZF + 1.35, 0.03, 1.2, 0.8, 'oak', bevel=0.004)
+    box('art2', cx + 8.25, cy - 7.4, ZF + 1.4, 0.01, 1.1, 0.7, 'art', bevel=0)
+    # bath: tub by the glass, double vanity on the back wall, glass shower, warm stone
+    box('bath_floor', cx + 11.4, cy - 3.0, ZF + 0.002, 6.2, 2.9, 0.01, 'travertine', bevel=0)
+    box('vanity', cx + 10.9, cy - 1.8, ZF + 0.3, 2.4, 0.5, 0.5, 'oak_h', bevel=0.004)
+    box('vanity_top', cx + 10.9, cy - 1.8, ZF + 0.8, 2.44, 0.54, 0.05, 'marble', bevel=0.004)
+    for bx_ in (10.35, 11.45):
+        box('basin', cx + bx_, cy - 1.82, ZF + 0.85, 0.48, 0.34, 0.12, 'ceramic', bevel=0.03)
+        cyl('btap', cx + bx_, cy - 1.6, ZF + 0.85, 0.012, 0.012, 0.25, 'brass', verts=10)
+    box('mirror', cx + 10.9, cy - 1.53, ZF + 1.15, 2.2, 0.02, 0.95, 'screen', bevel=0.004)
+    box('mirror_led', cx + 10.9, cy - 1.505, ZF + 1.1, 2.3, 0.01, 1.05, 'led_soft', bevel=0)
+    box('splash_b', cx + 11.4, cy - 1.52, ZF, 6.0, 0.02, 0.85, 'marble', bevel=0)
+    cyl('tub', cx + 13.3, cy - 3.2, ZF, 0.85, 0.42, 0.58, 'ceramic', verts=48, bevel=0.03)
+    cyl('tub_in', cx + 13.3, cy - 3.2, ZF + 0.2, 0.76, 0.34, 0.4, 'stoneware', verts=48)
+    cyl('tub_tap', cx + 12.35, cy - 3.2, ZF, 0.02, 0.02, 0.95, 'brass', verts=10)
+    box('shower_glass', cx + 9.9, cy - 3.2, ZF, 0.02, 1.9, 2.1, 'glass', bevel=0)
+    box('shower_wall', cx + 8.75, cy - 3.0, ZF, 0.9, 0.02, 2.4, 'marble', bevel=0) if False else None
+    cyl('shower_head', cx + 8.7, cy - 3.0, ZF + 2.15, 0.12, 0.12, 0.02, 'brass', verts=24)
+    box('towel', cx + 12.2, cy - 1.62, ZF + 0.9, 0.5, 0.06, 0.6, 'linen', bevel=0.02)
+    for x_, y_ in [(10.4, -2.6), (12.4, -2.6), (13.4, -3.4), (9.0, -3.2), (11.4, -3.8)]:
+        cyl('can', cx + x_, cy + y_, zc - 0.03, 0.045, 0.045, 0.02, 'led', verts=24)
+        spot('dl', cx + x_, cy + y_, zc - 0.05, energy=13, size=75)
+    area('fill_p', cx - 11.6, cy - 9.2, ZF + 1.4, 6.0, 2.4, 6, color=(0.75, 0.82, 1.0), rot=(math.radians(-90), 0, 0))
+    area('fill_b', cx + 11.6, cy - 9.2, ZF + 1.4, 6.0, 2.4, 6, color=(0.75, 0.82, 1.0), rot=(math.radians(-90), 0, 0))
+
 # ------------------------------------------------------------------ cameras
 def camera(name, loc, look, lens=24.0):
     c = bpy.data.cameras.new(name); c.lens = lens; c.clip_start = 0.05; c.clip_end = 12000
@@ -794,6 +919,8 @@ build_target_floor()
 build_city()
 if MODE in ('fly', 'pano', 'test', 'interior'):
     build_apartment()
+if MODE in ('pano', 'interior'):
+    build_bedrooms()
 if True:
     try:
         scene.view_settings.use_white_balance = True
@@ -809,8 +936,12 @@ elif MODE == 'interior':
     cam.data.lens = 18
     look_at(cam, (0.5, -9.0, EYE), (-1.5, -2.0, EYE - 0.2))
     render_to(os.path.join(OUT, 'test_int.jpg'))
-    look_at(cam, (3.0, -2.5, EYE), (-1.0, -10.0, EYE - 0.3))
-    render_to(os.path.join(OUT, 'test_int2.jpg'))
+    look_at(cam, (-11.8, -8.6, EYE), (-11.2, -1.5, EYE - 0.5))
+    render_to(os.path.join(OUT, 'test_primary.jpg'))
+    look_at(cam, (13.2, -8.8, EYE), (8.5, -6.8, EYE - 0.5))
+    render_to(os.path.join(OUT, 'test_bed2.jpg'))
+    look_at(cam, (9.0, -4.0, EYE), (13.5, -2.6, EYE - 0.5))
+    render_to(os.path.join(OUT, 'test_bath.jpg'))
 elif MODE == 'orbit':
     cam.data.lens = 38
     meta = {'frames': FRAMES, 'res': RES, 'floors': {k: t['floors'] for k, t in TOWERS.items()}, 'polys': []}
@@ -847,7 +978,8 @@ elif MODE == 'pano':
     cam.data.type = 'PANO'
     try: cam.data.panorama_type = 'EQUIRECTANGULAR'
     except Exception: cam.data.cycles.panorama_type = 'EQUIRECTANGULAR'
-    spots = {'living': (0.6, -6.8, EYE), 'kitchen': (3.4, -3.2, EYE), 'window': (-1.2, -9.0, EYE), 'balcony': (2.6, -11.0, EYE)}
+    spots = {'living': (0.6, -6.8, EYE), 'kitchen': (3.4, -3.2, EYE), 'window': (-1.2, -9.0, EYE), 'balcony': (2.6, -11.0, EYE),
+             'primary': (-11.2, -6.2, EYE), 'bedroom': (11.6, -7.6, EYE), 'bath': (11.6, -3.05, EYE)}
     want = arg('--rooms', default='living,kitchen,window,balcony').split(',')
     for name in want:
         loc = spots[name]

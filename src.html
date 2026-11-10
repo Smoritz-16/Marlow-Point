@@ -110,7 +110,13 @@ body[data-mode=tower] #left .hint{margin-top:10px;font-size:11px;color:rgba(255,
 .kv span{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .price{font-family:var(--serif);font-size:32px;margin:6px 0 2px}
 #rooms{width:100%;height:auto;display:block;margin:10px 0}
-#rooms text{font:600 9px var(--sans);fill:var(--sand);letter-spacing:.05em}
+#rooms text{font:600 9px var(--sans);fill:var(--sand);letter-spacing:.05em;pointer-events:none}
+#rooms .rm{cursor:pointer}
+#rooms .rm rect{fill:rgba(233,223,207,.08);stroke:rgba(233,223,207,.35);transition:fill .15s}
+#rooms .rm:hover rect{fill:rgba(209,168,95,.22)}
+#rooms .rm.on rect{fill:rgba(209,168,95,.42);stroke:var(--brass)}
+#rooms .eye{font-size:7px;fill:rgba(233,223,207,.6)}
+#rooms .rm:hover .eye{fill:var(--brass)}
 .cta{display:block;width:100%;margin-top:14px;padding:14px 18px;border-radius:999px;border:0;font-weight:700;font-size:13.5px;letter-spacing:.04em;color:#1b1407}
 .ghost{display:block;width:100%;margin-top:8px;padding:12px 18px;border-radius:999px;border:1px solid var(--line);background:none;font-size:12.5px;font-weight:600}
 .status{display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:6px 11px;border-radius:999px;border:1px solid var(--line)}
@@ -131,7 +137,7 @@ body[data-mode=tower] #left .hint{margin-top:10px;font-size:11px;color:rgba(255,
 
 /* bottom room tabs (inside) */
 #roomTabs{position:fixed;left:50%;bottom:26px;translate:-50% 0;z-index:4;display:flex;gap:4px;padding:6px;border-radius:999px}
-#roomTabs button{background:none;border:0;padding:11px 20px;border-radius:999px;font-size:13px;font-weight:600}
+#roomTabs button{background:none;border:0;padding:11px 16px;border-radius:999px;font-size:13px;font-weight:600}
 #roomTabs button.on{background:var(--brass);color:#1b1407}
 .dragnote{position:fixed;left:50%;bottom:92px;translate:-50% 0;z-index:4;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.75);pointer-events:none;transition:opacity .6s}
 .repr{position:fixed;left:28px;bottom:24px;z-index:4;font-size:10.5px;color:rgba(233,223,207,.55);letter-spacing:.06em;max-width:300px}
@@ -247,6 +253,7 @@ input:focus,textarea:focus{border-color:var(--brass)}
   <h2 id="uTitle">B-2401</h2>
   <span class="status" id="uStatus"><i class="dot d-av"></i>Available</span>
   <svg id="rooms" viewBox="0 0 252 120"></svg>
+  <div style="font-size:10.5px;color:var(--muted);margin:-4px 0 6px">Tap a room to see it in 360°</div>
   <div class="kv">
     <div><b id="kArea">1,780</b><span>sq ft</span></div>
     <div><b id="kBed">2</b><span>Beds</span></div>
@@ -272,6 +279,9 @@ input:focus,textarea:focus{border-color:var(--brass)}
   <button data-room="window">Window</button>
   <button data-room="living" class="on">Living</button>
   <button data-room="kitchen">Kitchen</button>
+  <button data-room="primary">Primary</button>
+  <button data-room="bedroom">Bedroom</button>
+  <button data-room="bath">Bath</button>
   <button data-room="balcony">Balcony</button>
 </div>
 <div class="dragnote hide" id="dragnote">Drag to look around · 360°</div>
@@ -528,10 +538,13 @@ function openFloor(fl){
 }
 function roomsSVG(T){
   var svg=$('#rooms'),h='',X0=6,Y0=6,WW=240,HH=108;
-  T.rooms.forEach(function(r,i){var x=X0+r[1]*WW,y=Y0+r[2]*HH,w=r[3]*WW,hh=r[4]*HH;
-    h+='<rect x="'+(x+1.5)+'" y="'+(y+1.5)+'" width="'+(w-3)+'" height="'+(hh-3)+'" rx="6" fill="'+(i===0?'rgba(209,168,95,.32)':'rgba(233,223,207,.08)')+'" stroke="rgba(233,223,207,.35)"/>';
-    h+='<text x="'+(x+w/2)+'" y="'+(y+hh/2+3)+'" text-anchor="middle">'+r[0]+'</text>'});
+  var MAP={Living:'living',Kitchen:'kitchen',Primary:'primary',Bedroom:'bedroom','Bed 2':'bedroom','Bed 3':'bedroom',Bath:'bath'};
+  T.rooms.forEach(function(r,i){var x=X0+r[1]*WW,y=Y0+r[2]*HH,w=r[3]*WW,hh=r[4]*HH,k=MAP[r[0]]||'living';
+    h+='<g class="rm'+(S.mode==='inside'&&S.room===k?' on':'')+'" data-room="'+k+'"><title>View the '+r[0].toLowerCase()+' in 360°</title><rect x="'+(x+1.5)+'" y="'+(y+1.5)+'" width="'+(w-3)+'" height="'+(hh-3)+'" rx="6"/>';
+    h+='<text x="'+(x+w/2)+'" y="'+(y+hh/2+1)+'" text-anchor="middle">'+r[0]+'</text><text class="eye" x="'+(x+w/2)+'" y="'+(y+hh/2+12)+'" text-anchor="middle">360° ›</text></g>'});
   svg.innerHTML=h;
+  $$('#rooms .rm').forEach(function(g){g.onclick=function(){var k=g.dataset.room;
+    if(S.mode==='inside')goRoom(k);else{S.wantRoom=k;$('#flyBtn').onclick()}}});
 }
 function openUnit(u){
   S.unit=u;
@@ -594,19 +607,23 @@ $('#flyBtn').onclick=function(){
     };
   },250);
 };
-var ROOMS={window:{yaw:180,pitch:-4},living:{yaw:-11.5,pitch:-2.4},kitchen:{yaw:-65,pitch:-6},balcony:{yaw:155,pitch:-10}};
+var ROOMS={primary:{yaw:0,pitch:-7},bedroom:{yaw:-95,pitch:-7},bath:{yaw:72,pitch:-8},window:{yaw:180,pitch:-4},living:{yaw:-11.5,pitch:-2.4},kitchen:{yaw:-65,pitch:-6},balcony:{yaw:155,pitch:-10}};
 function enterInside(){
-  S.room='living';pano.yaw=ROOMS.living.yaw*Math.PI/180;pano.pitch=ROOMS.living.pitch*Math.PI/180;pano.fov=84;
-  pano.set(panoImg.living,false);
+  var r=S.wantRoom&&panoImg[S.wantRoom]?S.wantRoom:'living';S.wantRoom=null;
+  S.room=r;pano.yaw=ROOMS[r].yaw*Math.PI/180;pano.pitch=ROOMS[r].pitch*Math.PI/180;pano.fov=84;
+  pano.set(panoImg[r],false);
   // crossfade the last flight frame into the live 360
   setMode('inside');
-  $$('#roomTabs button').forEach(function(b){b.classList.toggle('on',b.dataset.room==='living')});
+  $$('#roomTabs button').forEach(function(b){b.classList.toggle('on',b.dataset.room===r)});$$('#rooms .rm').forEach(function(x){x.classList.toggle('on',x.dataset.room===r)});
   $('#dragnote').style.opacity=1;setTimeout(function(){$('#dragnote').style.opacity=0},4200);
 }
 var ghost=null,ghostT=0;
-$$('#roomTabs button').forEach(function(b){b.onclick=function(){var r=b.dataset.room;if(!panoImg[r])return;
-  $$('#roomTabs button').forEach(function(x){x.classList.toggle('on',x===b)});S.room=r;
-  pano.set(panoImg[r],true);tween(pano,'yaw',ROOMS[r].yaw*Math.PI/180,900);tween(pano,'pitch',ROOMS[r].pitch*Math.PI/180,900)}});
+function goRoom(r,instant){if(!panoImg[r])return;S.room=r;
+  $$('#roomTabs button').forEach(function(x){x.classList.toggle('on',x.dataset.room===r)});
+  $$('#rooms .rm').forEach(function(x){x.classList.toggle('on',x.dataset.room===r)});
+  if(instant){pano.set(panoImg[r],false);pano.yaw=ROOMS[r].yaw*Math.PI/180;pano.pitch=ROOMS[r].pitch*Math.PI/180;dirty=true;return}
+  pano.set(panoImg[r],true);tween(pano,'yaw',ROOMS[r].yaw*Math.PI/180,900);tween(pano,'pitch',ROOMS[r].pitch*Math.PI/180,900)}
+$$('#roomTabs button').forEach(function(b){b.onclick=function(){goRoom(b.dataset.room)}});
 function tween(o,k,to,ms){var f=o[k],t0=performance.now();if(k==='yaw'){var d=((to-f)%(2*Math.PI)+3*Math.PI)%(2*Math.PI)-Math.PI;to=f+d}
   (function st(n){var a=Math.min(1,(n-t0)/ms);a=a<.5?2*a*a:1-Math.pow(-2*a+2,2)/2;o[k]=f+(to-f)*a;if(a<1)requestAnimationFrame(st)})(t0)}
 

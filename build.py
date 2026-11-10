@@ -10,7 +10,7 @@ for fr in meta['polys']:
             t[k] = [[round(a, 3), round(b, 3)] for a, b in poly]
 fly = sorted(glob.glob(os.path.join(here, 'render/fly/fly_*.jpg')))
 panos = [os.path.basename(p)[5:-4] for p in sorted(glob.glob(os.path.join(here, 'render/pano/pano_*.jpg')))]
-order = [p for p in ['window', 'living', 'kitchen', 'balcony'] if p in panos]
+order = [p for p in ['window', 'living', 'kitchen', 'primary', 'bedroom', 'bath', 'balcony'] if p in panos]
 html = (src.replace('/*ASCII*/', open(os.path.join(here, 'fx_ascii.js')).read())
            .replace('/*GEO*/', open(os.path.join(here, 'fx_geo.js')).read())
            .replace('/*LG*/', open(os.path.join(here, 'render.js')).read())
