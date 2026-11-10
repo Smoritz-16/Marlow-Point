@@ -23,7 +23,8 @@ cd site && python3 -m http.server 8000
 | `site/media/pano/` | 360° equirectangular panoramas: window, living, kitchen, balcony |
 | `scene.py` | The Blender scene: towers, city, sky, apartment, cameras and the render modes |
 | `lib.py` | Material and mesh helpers (shared with the Calder Quay room renders) |
-| `src.html` + `build.py` | Page source; `build.py` inlines the effects and the floor outlines into `site/index.html` |
+| `src.html` + `build.py` | Page source; `build.py` inlines the effects, the GPU renderer and the floor outlines into `site/index.html` |
+| `render.js` | One WebGL pass that draws the renders, the 360 view and the Liquid Glass panels together |
 
 ## Re-render
 

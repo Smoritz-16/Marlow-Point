@@ -93,7 +93,7 @@ p{margin:0 0 14px;font-size:13.5px;line-height:1.55;color:rgba(233,223,207,.82)}
 #railList button.on::after,#railList button:hover::after{display:none}
 
 /* tooltip */
-#tip{display:none;position:fixed;z-index:6;pointer-events:none;padding:10px 14px;border-radius:16px;font-size:12px;line-height:1.35;opacity:0;transition:opacity .15s;white-space:nowrap}
+#tip{display:none;position:fixed;z-index:6;pointer-events:none;padding:10px 14px;border-radius:16px;font-size:12px;line-height:1.35;white-space:nowrap}
 #tip b{font-family:var(--serif);font-size:16px;font-weight:500;display:block}
 
 /* bottom room tabs (inside) */
@@ -269,8 +269,8 @@ var ST = {av:'Available',re:'Reserved',so:'Sold'};
 
 /* ------------------------------------------------ stage */
 var stage=$('#stage'), ctx=stage.getContext('2d'), W=0,H=0,DPR=1;
-function resize(){DPR=1;W=innerWidth;H=innerHeight;stage.width=Math.round(W*DPR);stage.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0);dirty=true}
-addEventListener('resize',function(){resize();document.querySelectorAll('.lg').forEach(function(e){e.__lgRad=null})});
+var ODPR=1;function resize(){DPR=1;W=innerWidth;H=innerHeight;stage.width=Math.round(W*DPR);stage.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0);if(ov){ODPR=Math.min(2,window.devicePixelRatio||1);ov.width=Math.round(W*ODPR);ov.height=Math.round(H*ODPR)}dirty=true}
+addEventListener('resize',resize);
 var IW=DATA.res[0], IH=DATA.res[1];
 function cover(){var s=Math.max(W/IW,H/IH);return {s:s,x:(W-IW*s)/2,y:(H-IH*s)/2}}
 
@@ -293,72 +293,53 @@ function toImage(x,y,V){return [(x-V.x)/(IW*V.s),(y-V.y)/(IH*V.s)]}
 
 function drawPoly(poly,V,fill,stroke,lw){ctx.beginPath();poly.forEach(function(p,i){var q=toScreen(p[0],p[1],V);i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])});ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=lw||1.5;ctx.stroke()}}
 
-function drawOrbit(){
-  var V=view(), f=S.frame, i0=Math.floor(f), i1=Math.min(ORBIT_N-1,i0+1), a=f-i0;
-  var im0=orbit[Math.round(f)], im1=null;
-  if(!im0)return;
-  ctx.globalAlpha=1;ctx.drawImage(im0,V.x,V.y,IW*V.s,IH*V.s);
-  // (no blending between orbit frames: it ghosts)
-  // vignette for legibility
-  var g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'rgba(8,14,22,.38)');g.addColorStop(.18,'rgba(8,14,22,0)');g.addColorStop(.8,'rgba(8,14,22,0)');g.addColorStop(1,'rgba(8,14,22,.45)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-  var target=S.floor||S.hover;
+var GL=null, ov=null, octx=null;
+function overlayCtx(){ if(GL){return octx} return ctx }
+function drawOverlay(){
+  var c=overlayCtx(); if(!c)return;
+  if(GL){c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,ov.width,ov.height);c.setTransform(ODPR,0,0,ODPR,0,0)}
+  if(S.mode!=='tower'&&S.mode!=='floor')return;
+  var V=view(), f=S.frame, target=S.floor||S.hover;
+  function path(poly){c.beginPath();poly.forEach(function(p,i){var q=toScreen(p[0],p[1],V);i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1])});c.closePath()}
   if(S.mode==='floor'&&S.floor){
-    // dim everything except the chosen floor
-    ctx.save();ctx.fillStyle='rgba(8,14,22,.42)';ctx.beginPath();ctx.rect(0,0,W,H);
-    var poly=polyOf(S.floor,f);poly.slice().reverse().forEach(function(p,i){var q=toScreen(p[0],p[1],V);i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])});ctx.closePath();ctx.fill('evenodd');ctx.restore();
-    drawPoly(poly,V,'rgba(209,168,95,.16)','rgba(240,205,140,.95)',1.6);
+    var poly=polyOf(S.floor,f);
+    c.save();c.fillStyle='rgba(8,14,22,.42)';c.beginPath();c.rect(0,0,W,H);
+    poly.slice().reverse().forEach(function(p,i){var q=toScreen(p[0],p[1],V);i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1])});c.closePath();c.fill('evenodd');c.restore();
+    path(poly);c.fillStyle='rgba(209,168,95,.16)';c.fill();c.strokeStyle='rgba(240,205,140,.95)';c.lineWidth=1.6;c.stroke();
   } else if(target){
-    drawPoly(polyOf(target,f),V,'rgba(209,168,95,.30)','rgba(245,214,155,.95)',1.4);
+    path(polyOf(target,f));c.fillStyle='rgba(209,168,95,.30)';c.fill();c.strokeStyle='rgba(245,214,155,.95)';c.lineWidth=1.4;c.stroke();
   }
 }
-function drawFly(){
-  var t=S.flyT*(FLY_N-1), i0=Math.floor(t), i1=Math.min(FLY_N-1,i0+1), a=t-i0, c=cover();
-  var im0=fly[i0], im1=fly[i1];
-  if(!im0){return}
-  ctx.drawImage(im0,c.x,c.y,IW*c.s,IH*c.s);
-  if(im1&&a>0.01){ctx.globalAlpha=a;ctx.drawImage(im1,c.x,c.y,IW*c.s,IH*c.s);ctx.globalAlpha=1}
-}
-function frame(){
-  if(S.mode==='inside'){pano.draw();ctx.drawImage(pano.canvas,0,0,W,H);var g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'rgba(8,14,22,.42)');g.addColorStop(.16,'rgba(8,14,22,0)');g.addColorStop(.85,'rgba(8,14,22,0)');g.addColorStop(1,'rgba(8,14,22,.35)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);return}
+/* what the background shows right now, as layers for the GPU (or drawn in 2D without WebGL) */
+function compose(){
+  var c=cover(), full=[c.x,c.y,IW*c.s,IH*c.s], L={A:null,B:null,mix:1,dimTop:.38,dimBot:.45};
+  if(S.mode==='inside'){
+    L.dimTop=.42;L.dimBot=.35;
+    var ga=ghost?1-(performance.now()-ghostT)/800:0;
+    if(ghost&&ga>0){L.A={el:pano.cur,mode:1};L.B={el:ghost,mode:0,rect:full};L.mix=1-ga}
+    else{ghost=null;L.A={el:pano.cur,mode:1};if(pano.prev&&pano.mix<1){L.B={el:pano.prev,mode:1};L.mix=pano.mix}}
+    L.yaw=pano.yaw;L.pitch=pano.pitch;L.fov=pano.fov;
+  } else if(S.mode==='fly'){
+    var t=S.flyT*(FLY_N-1), i0=Math.floor(t), i1=Math.min(FLY_N-1,i0+1), a=t-i0;
+    L.A={el:fly[i1]||fly[i0],mode:0,rect:full};L.B={el:fly[i0],mode:0,rect:full};L.mix=a;
+  } else {
+    var V=view();L.A={el:orbit[Math.round(S.frame)],mode:0,rect:[V.x,V.y,IW*V.s,IH*V.s]};
+  }
+  if(GL){GLR.set(L);return}
+  /* 2D fallback */
   ctx.fillStyle='#0d141c';ctx.fillRect(0,0,W,H);
-  if(S.mode==='fly')drawFly();else drawOrbit();
+  function draw2d(Ly,al){if(!Ly||!Ly.el)return;ctx.globalAlpha=al;if(Ly.mode===1){var e=Ly.el,sw=e.width*.25;ctx.drawImage(e,e.width*.5-sw/2+(pano.yaw/(2*Math.PI))*e.width,e.height*.25,sw,e.height*.5,0,0,W,H)}else{var q=Ly.rect;ctx.drawImage(Ly.el,q[0],q[1],q[2],q[3])}ctx.globalAlpha=1}
+  if(L.B&&L.mix<1){draw2d(L.B,1);draw2d(L.A,L.mix)}else draw2d(L.A,1);
+  var g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'rgba(8,14,22,'+L.dimTop+')');g.addColorStop(.18,'rgba(8,14,22,0)');g.addColorStop(.8,'rgba(8,14,22,0)');g.addColorStop(1,'rgba(8,14,22,'+L.dimBot+')');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
 }
+function frame(){compose();drawOverlay()}
 
-/* ------------------------------------------------ 360 viewer (own tiny WebGL, equirect) */
-var pano=(function(){
-  var cv=document.createElement('canvas'),gl=cv.getContext('webgl',{preserveDrawingBuffer:true,antialias:false});
-  var api={canvas:cv,yaw:0,pitch:0,fov:84,ok:!!gl,draw:function(){},set:function(){},mix:1};
-  if(!gl)return api;
-  var vs='attribute vec2 p;varying vec2 v;void main(){v=p;gl_Position=vec4(p,0.,1.);}';
-  var fs='precision highp float;varying vec2 v;uniform sampler2D a,b;uniform float yaw,pitch,tanf,asp,mixv;'+
-   'vec3 dir(){vec3 d=normalize(vec3(v.x*tanf,1.,v.y*tanf/asp));'+
-   'float cp=cos(pitch),sp=sin(pitch);d=vec3(d.x,d.y*cp-d.z*sp,d.y*sp+d.z*cp);'+
-   'float cy=cos(yaw),sy=sin(yaw);return vec3(d.x*cy+d.y*sy,-d.x*sy+d.y*cy,d.z);}'+
-   'void main(){vec3 d=dir();float lon=atan(d.x,d.y);float lat=asin(clamp(d.z,-1.,1.));'+
-   'vec2 uv=vec2(fract(.5+lon/6.2831853),.5-lat/3.1415927);'+
-   'gl_FragColor=vec4(mix(texture2D(a,uv).rgb,texture2D(b,uv).rgb,mixv),1.);}';
-  function sh(t,s){var o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);return o}
-  var pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs));gl.linkProgram(pr);gl.useProgram(pr);
-  var bf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,bf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
-  var l=gl.getAttribLocation(pr,'p');gl.enableVertexAttribArray(l);gl.vertexAttribPointer(l,2,gl.FLOAT,false,0,0);
-  var U={};['a','b','yaw','pitch','tanf','asp','mixv'].forEach(function(n){U[n]=gl.getUniformLocation(pr,n)});
-  function tex(){var t=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,t);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);return t}
-  var TA=tex(),TB=tex(),cur=null;
-  function up(t,img){gl.bindTexture(gl.TEXTURE_2D,t);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,img)}
-  api.set=function(img,fade){ if(!img)return; if(fade&&cur){up(TA,cur);up(TB,img);api.mix=0}else{up(TA,img);up(TB,img);api.mix=1} cur=img };
-  api.draw=function(){
-    var w=Math.round(W*DPR),h=Math.round(H*DPR); if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}
-    gl.viewport(0,0,w,h);
-    gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,TA);gl.uniform1i(U.a,0);
-    gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,TB);gl.uniform1i(U.b,1);
-    gl.uniform1f(U.yaw,api.yaw);gl.uniform1f(U.pitch,api.pitch);gl.uniform1f(U.tanf,Math.tan(api.fov*Math.PI/360));gl.uniform1f(U.asp,w/h);gl.uniform1f(U.mixv,api.mix);
-    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
-  };
-  return api;
-})();
+/* ------------------------------------------------ 360 state (drawn by the GPU pass) */
+var pano={yaw:0,pitch:0,fov:84,mix:1,cur:null,prev:null,
+  set:function(img,fade){if(!img)return;if(fade&&this.cur&&this.cur!==img){this.prev=this.cur;this.mix=0}else{this.prev=null;this.mix=1}this.cur=img}};
 
 /* ------------------------------------------------ UI */
-function setMode(m){S.mode=m;document.body.dataset.mode=m;
+function setMode(m){S.mode=m;document.body.dataset.mode=m;dirty=true;
   $('#introView').classList.toggle('hide',m!=='tower');
   $('#floorView').classList.toggle('hide',m!=='floor');
   $('#left').classList.toggle('hide',m==='fly'||m==='inside');
@@ -534,11 +515,9 @@ function loop(now){var dt=Math.min(.05,(now-lastT)/1000);lastT=now;
     z.s=ns; var blend=(ns-1)/Math.max(.001,zt.s-1||ns-1);
     z.cx+= (zt.cx-z.cx)*k; z.cy+=(zt.cy-z.cy)*k; dirty=true}
   if(S.mode==='inside'){if(pano.mix<1){pano.mix=Math.min(1,pano.mix+dt*2.2);dirty=true}var pk=pano.yaw.toFixed(4)+pano.pitch.toFixed(4)+pano.fov.toFixed(2);if(pk!==S._pk){S._pk=pk;dirty=true}if(ghost)dirty=true}
-  if(dirty||S.mode==='fly'){frame();
-    if(ghost&&S.mode==='inside'){var ghostA=1-(performance.now()-ghostT)/800;if(ghostA<=0){ghost=null}else{var c2=cover();ctx.globalAlpha=Math.max(0,ghostA);ctx.drawImage(ghost,c2.x,c2.y,IW*c2.s,IH*c2.s);ctx.globalAlpha=1}}
-    dirty=false;bgDirty=true}
+  if(ghost&&S.mode==='inside')dirty=true;
+  if(dirty||S.mode==='fly'){frame();dirty=false}
   requestAnimationFrame(loop)}
-var bgDirty=true;
 
 /* ------------------------------------------------ boot */
 function waitFly(){return Promise.all(flyP)}
@@ -548,8 +527,9 @@ var orbitP=[];for(var i=0;i<ORBIT_N;i++)(function(i){orbitP.push(load('media/orb
 var done=0;function prog(){$('#bar i').style.width=Math.round(done/ORBIT_N*100)+'%';$('#loadTxt').textContent='Loading the towers · '+Math.round(done/ORBIT_N*100)+'%'}
 Promise.all(orbitP).then(function(){
   var lastGood=null;for(var q=0;q<ORBIT_N;q++){if(orbit[q])lastGood=orbit[q];else orbit[q]=lastGood}for(q=ORBIT_N-1;q>=0;q--){if(orbit[q])lastGood=orbit[q];else orbit[q]=lastGood}
-  var lg=null;try{lg=window.LiquidGlass&&LiquidGlass.init({background:function(c,w,h){c.drawImage(stage,0,0,w,h)},animate:true,light:[-.6,-.8],dirty:function(){var d=bgDirty;bgDirty=false;return d}})}catch(e){lg=null}
-  if(!lg)document.body.classList.add('nogl');
+  try{GL=window.GLR&&GLR.init({maxDpr:1.5,slots:5})}catch(e){GL=null}
+  if(GL){ov=document.createElement('canvas');ov.id='ov';ov.style.cssText='position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none';document.body.insertBefore(ov,$('#hit'));octx=ov.getContext('2d');resize()}
+  else document.body.classList.add('nogl');
   buildRail();setMode('tower');requestAnimationFrame(loop);
   var ld=$('#loader');ld.style.opacity=0;setTimeout(function(){var a=ld.querySelector('canvas');if(a&&a._asciiFx)a._asciiFx.destroy();ld.remove()},900);
   for(var j=0;j<FLY_N;j++)(function(j){flyP.push(load('media/fly/fly_'+String(j).padStart(3,'0')+'.jpg').then(function(im){fly[j]=im}))})(j);
