@@ -150,7 +150,7 @@ body:not([data-mode=tower]) .scrollcue{opacity:0;pointer-events:none}
 .sec h2 em{font-style:normal;color:var(--brass)}
 .sec .lead{font-size:16px;line-height:1.6;max-width:56ch;color:rgba(233,223,207,.8);margin-bottom:34px}
 .sec .grid2{display:grid;grid-template-columns:1.2fr 1fr;gap:clamp(24px,4vw,64px);align-items:start}
-.sec #geo{width:100%;height:clamp(300px,36vw,520px);border-radius:28px;display:block}
+.sec #geo{width:100%;height:clamp(300px,36vw,520px);border-radius:28px;display:block;object-fit:cover}
 .sec .plan-row{padding:16px 0}
 .sec .plan-row b{font-size:22px}
 .sec .num{font-family:var(--serif);font-size:15px;color:var(--brass);margin-right:12px}
@@ -285,7 +285,7 @@ input:focus,textarea:focus{border-color:var(--brass)}
   <div class="eyebrow">Location</div>
   <h2>On the water, <em>ten minutes</em> from everything.</h2>
   <div class="grid2">
-    <canvas id="geo" class="geo-fx" data-geo="EDGE BOX ARCHITECTURE" data-image="media/orbit/orbit_017.jpg"></canvas>
+    <img id="geo" src="media/orbit/orbit_017.jpg" alt="Marlow Point's three towers above the Harbor District" loading="lazy">
     <div>
       <p class="lead">Three towers on a landscaped park in the Harbor District, between the old shipyards and downtown. The bay is a short walk south; the financial core sits just to the north-east.</p>
       <div class="plan-row"><span><i class="num">01</i>Waterfront promenade</span><b>4 min walk</b></div>
@@ -345,9 +345,6 @@ input:focus,textarea:focus{border-color:var(--brass)}
 
 <script>
 /*ASCII*/
-</script>
-<script>
-/*GEO*/
 </script>
 <script>
 /*LG*/
